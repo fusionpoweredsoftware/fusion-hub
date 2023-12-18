@@ -1,0 +1,248 @@
+import fs from "fs/promises";
+import _fs from "fs";
+import { aiInstructionsForFilenameCreation } from 'fusion-hub/ai/instructions';
+import { currentAiApiName } from "fusion-hub/variables";
+import { getCurrentChatHistoryFilePath, getChatHistoryDirPath, getCommandModeHistoryFilePath } from "fusion-hub/paths";
+import { expandFilePath, extractJSONFilename, addPeriodToBasename  } from "fusion-hub/functions";
+import cli from "fusion-hub/cli";
+import path from 'path';
+
+export const command = {
+  id: "chat-with-ai",
+  name: "chat with AI",
+  description: "Send a message to the AI. Returns the AI's response.",
+  examples: `chat-with-ai Hello, Mr. AI!`,
+  isInputCaseSensitive: true,
+  isStartable: true
+};
+
+let currentInputHistoryFilePath = null;
+const { errors: cliErrors } = cli
+const ai = await import('fusion-hub/ai/api/'+currentAiApiName);
+ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
+
+export async function start({
+  reinitialize = false,
+  action = undefined,
+  inputHistoryFilePath = undefined,
+  outputHistoryFilePath = undefined,
+  startNewIfInitilizationFailed = true,
+  initParameters = {}
+} = {}) {
+  initParameters.newDefaultStdout ||= cli.output;
+  initParameters.newDefaultConsole ||= cli.output;
+  outputHistoryFilePath ||= await getCurrentChatHistoryFilePath();
+  if (typeof initParameters !== 'object') {
+    cliErrors.noArgumentsAllowedError();
+    return false;
+  }
+  const { sessionId = 0 } = initParameters;
+  if (ai.verifyCurrentChatHistoryExists()) action ||= "Resuming";
+  if (!ai.checkInitialized(sessionId))
+    await ai.init({ action, inputHistoryFilePath, outputHistoryFilePath, ...initParameters });
+  else if (reinitialize) {
+    action ||= "Re-initializing";
+    await ai.init({ action, inputHistoryFilePath, outputHistoryFilePath, ...initParameters });
+  }
+  if (!ai.checkInitialized(sessionId) && startNewIfInitilizationFailed)
+    start.new(initParameters);
+  return true;
+}
+
+start.new = async (
+  initParameters = {},
+  startType = 'new'
+) => {
+  initParameters.newDefaultStdout ||= cli.output;
+  initParameters.newDefaultConsole ||= cli.output;
+  const { isPersistent = true } = initParameters;
+  if (typeof initParameters !== 'object') {
+    cliErrors.noArgumentsAllowedError();
+    return false;
+  }
+  const { sessionId = 0 } = initParameters;
+  if (ai.verifyCurrentChatHistoryExists(sessionId) && isPersistent) {
+    const temporaryHistoryFilename = `${new Date()
+      .toISOString()
+      .replace(/:/g, "-")
+      .slice(0, 19)}.json`;
+
+    const temporaryHistoryFilePath = path.join((await getChatHistoryDirPath()),temporaryHistoryFilename);
+    await fs.rename(ai.getCurrentChatHistoryFilename(), temporaryHistoryFilePath);
+    await start({
+      action: "Finalizing previous",
+      inputHistoryFilePath: temporaryHistoryFilePath,
+      startNewIfInitilizationFailed: false
+    });
+    let suggestedFilenameSource, suggestedFilename, suggestedFilePath;
+    if (currentInputHistoryFilePath==null) {
+      suggestedFilenameSource = await ai.chat(
+        aiInstructionsForFilenameCreation(),
+        { chatStdout: { write: () => {} }, isPersistent: false }
+      );
+      suggestedFilename = extractJSONFilename(suggestedFilenameSource) || temporaryHistoryFilename;
+    }
+    else {
+      suggestedFilePath = currentInputHistoryFilePath;
+      suggestedFilename = path.basename(suggestedFilePath);
+    }
+    const chatHistoryDirPath = await getChatHistoryDirPath();
+    let suggestedFilePathOriginal =  path.join(chatHistoryDirPath,suggestedFilename);
+    suggestedFilePath = suggestedFilePathOriginal
+    let copyNum=2;
+    while (_fs.existsSync(suggestedFilePath+".json") || copyNum > 100) {
+      suggestedFilePath = suggestedFilePathOriginal.replace(/\.json$/g,'')+` (${copyNum}).json`;
+      copyNum++;
+    }
+    if (copyNum>100) {
+      cli.output.warn("\nWARNING: The AI is suggesting the same filename, but 99 copies were found. This is excessive; reverting to timestamps.\n")
+      suggestedFilename=temporaryHistoryFilename;
+      suggestedFilePath=temporaryHistoryFilePath;
+    } else
+      suggestedFilename = path.basename(suggestedFilePath);
+    cli.output.log(
+      `New AI session started. Previous conversation saved as: ${suggestedFilename}`
+    );
+    const newCommandModeHistoryFilePath = addPeriodToBasename(suggestedFilePath.replace(/\.json$/g,''));
+    const commandModeHistoryFilePath = await getCommandModeHistoryFilePath();
+    if (_fs.existsSync(commandModeHistoryFilePath))
+      await fs.rename(commandModeHistoryFilePath, newCommandModeHistoryFilePath);
+    if (suggestedFilename != temporaryHistoryFilename)
+      await fs.rename(
+        temporaryHistoryFilePath,
+        suggestedFilePath
+      );
+  }
+  if (startType=='new')
+    currentInputHistoryFilePath=null;
+  await ai.init({ action: "Starting "+startType, ...initParameters });
+  return true;
+}
+
+start.old = async (historyJsonFilePath=null, 
+  initParameters = {}, startType='old'
+) => {
+  initParameters.newDefaultStdout ||= cli.output;
+  initParameters.newDefaultConsole ||= cli.output;
+  if (!historyJsonFilePath) {
+    cliErrors.noArgumentsSuppliedError(1);
+    return false;
+  }
+  if (typeof initParameters !== 'object') {
+    cliErrors.argumentsLimitError(1); 
+    return false;
+  }
+
+  let prefix='';
+  if (!historyJsonFilePath.match(/^[\.\/\~]/g))
+    prefix=`~~~/`
+
+  const inputHistoryFilePathSource = await expandFilePath(prefix+historyJsonFilePath);
+
+  if (startType=='template') {
+    initParameters.inputHistoryFilePath = await expandFilePath(`~~~/${path.basename(historyJsonFilePath)}`, { contextDir: 'fusion-hub/templates' });
+    if (_fs.existsSync(inputHistoryFilePathSource))
+      await fs.copyFile(inputHistoryFilePathSource, initParameters.inputHistoryFilePath);
+    else
+      cli.templateNotFoundError();
+  }
+  else {
+    initParameters.inputHistoryFilePath = inputHistoryFilePathSource;
+  }
+
+  const { inputHistoryFilePath } = initParameters;
+
+  if (startType=='template' && (!_fs.existsSync(inputHistoryFilePath))) {
+    if (_fs.existsSync(inputHistoryFilePathSource))
+      await fs.copyFile(inputHistoryFilePathSource, inputHistoryFilePath);
+    else
+      cli.templateNotFoundError();
+  }
+
+  if (_fs.existsSync(inputHistoryFilePath)) {
+    await fs.copyFile(inputHistoryFilePath, inputHistoryFilePath+".bak");
+    let oldCopy=1, L=10;
+    if (_fs.existsSync(inputHistoryFilePath+".old")) {
+      oldCopy = Number(await fs.readFile(inputHistoryFilePath+".old", "utf-8"));
+    }
+    await fs.copyFile(inputHistoryFilePath, inputHistoryFilePath+".old"+oldCopy%L);
+    await fs.writeFile(inputHistoryFilePath+".old", `${oldCopy++}`);
+  }
+  await start.new(initParameters, startType);
+  const oldCommandModeHistoryFilePath = addPeriodToBasename(inputHistoryFilePath.replace(/\.json$/g,''));
+  const oldCommandModeHistoryFilePathSource = addPeriodToBasename(inputHistoryFilePathSource.replace(/\.json$/g,''));
+  const commadeModeHistoryFilePath = await getCommandModeHistoryFilePath();
+  if (_fs.existsSync(oldCommandModeHistoryFilePath))
+    await fs.copyFile(oldCommandModeHistoryFilePath, commadeModeHistoryFilePath);
+  else if (_fs.existsSync(oldCommandModeHistoryFilePathSource))
+    await fs.copyFile(oldCommandModeHistoryFilePathSource, commadeModeHistoryFilePath);
+  if (startType=='template')
+    currentInputHistoryFilePath = null;
+  else
+    currentInputHistoryFilePath = inputHistoryFilePath;
+  return true;
+}
+
+start.last = async (initParameters = {}
+) => {
+  initParameters.newDefaultStdout ||= cli.output;
+  initParameters.newDefaultConsole ||= cli.output;
+  const { sessionId = 0 } = initParameters;
+  const result = await ai.undo({sessionId, showLastContent: true, chatConsole: cli.output});
+  if (result && result.length > 0) {
+    return true;
+  }
+  return false;
+}
+
+start.recap = async (initParameters = {}
+  ) => {
+    initParameters.newDefaultStdout ||= cli.output;
+    initParameters.newDefaultConsole ||= cli.output;
+    const { sessionId = 0 } = initParameters;
+    const result = await ai.recap({sessionId, showLastContent: true, chatConsole: cli.output});
+    if (result && result.length > 0) {
+      return true;
+    }
+    return false;
+}
+
+start.send = async (filename, initParameters = {}
+  ) => {
+  initParameters.newDefaultStdout ||= cli.output;
+  initParameters.newDefaultConsole ||= cli.output;
+  const fileData = await fs.readFile(filename, "utf-8");
+  await start({ initParameters });
+  const result = await ai.chat(fileData, { chatStdout: initParameters.newDefaultStdout, chatConsole: initParameters.newDefaultConsole });
+  if (result && result.length > 0) {
+    return true;
+  }
+  return false;
+}
+
+start.template = async (templateSourceJsonFilePath=null, initParameters = {}
+  ) => {
+  initParameters.newDefaultStdout ||= cli.output;
+  initParameters.newDefaultConsole ||= cli.output;
+  const result = await start.old(templateSourceJsonFilePath, initParameters, 'template');
+  if (result) {
+    return true;
+  }
+  return false;
+}
+
+export const { chat } = ai;
+
+export async function process({ input, joinedInput: aiChatInput, settings = {} }) {
+  const { aiChatSettings, initParameters = {}, isNew = false } = settings;
+  initParameters.newDefaultStdout ||= cli.output;
+  initParameters.newDefaultConsole ||= cli.output;
+  if (input.length==0)
+    isNew=true;
+  if (isNew)
+    await start.new({ ...initParameters });
+  else
+    await start({initParameters});
+  if (aiChatInput)
+    await ai.chat(aiChatInput, aiChatSettings);
+}

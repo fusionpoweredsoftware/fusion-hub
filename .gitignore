@@ -1,0 +1,9 @@
+.DS_Store
+ai/.DS_Store
+ai/node_modules/
+testing/node_modules
+package-lock.json
+ai/package-lock.json
+testing/my-*-test.*
+node_modules/
+file.txt
