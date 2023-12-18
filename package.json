@@ -1,0 +1,23 @@
+{
+  "name": "fusion-hub",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.mjs",
+  "type": "module",
+  "exports": {
+    ".": "./main.mjs",
+    "./*": "./*.mjs",
+    "./ai": "./ai/main.mjs",
+    "./api": "./api/main.mjs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ai": "./ai",
+    "@google-cloud/aiplatform": "^3.9.0",
+    "@google-cloud/vertexai": "github:googleapis/nodejs-vertexai"
+  }
+}
