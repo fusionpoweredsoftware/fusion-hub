@@ -4,6 +4,14 @@ import _fs from "fs";
 import path from 'path';
 let codeBlockCounter = 0;
 
+export const getArgs = (input) => {
+  input = input.trim().match(/(?:[^\s"]+|"[^"\\]*(?:\\.[^"\\]*)*")+/g);
+  for (let i = 0; i < input.length; i++)
+    if (input[i][0] == `"` && input[i].match(/"$/g))
+      input[i] = input[i].slice(1, -1).replace("\\\"","\"");
+  return input;
+}
+
 export const expandFilePath = async (filePath, {appCacheDir, contextDir}={}) => {
   const { appCacheDir: currentAppCacheDir, defaultContextDir } = await import('fusion-hub/variables');
   contextDir ||= defaultContextDir;
