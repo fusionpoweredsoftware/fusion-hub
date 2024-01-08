@@ -31,7 +31,7 @@ export const print = (data) => write((data||='')+'\n');
 
 let rl;
 
-export const executeCommand = async (input, settings, extensiveInputBuffer) => {
+export const executeCommand = async (input, settings, extensiveInputBuffer, isThrowing=false) => {
   if (!input || !input.split)
     return;
   input = input.trim().split(' ');
@@ -66,10 +66,17 @@ export const executeCommand = async (input, settings, extensiveInputBuffer) => {
         commaDelimitedInput
       });
     } catch (err) {
-      if (err.code != 'ERR_MODULE_NOT_FOUND')
-        error(err);
+      if (!isThrowing)
+      {
+        if (err.code != 'ERR_MODULE_NOT_FOUND')
+          error(err);
+        else
+          commandNotFoundError();
+      }
       else
-        commandNotFoundError();
+      {
+        throw err;
+      }
     }
   }
 }

@@ -63,7 +63,7 @@ const {
 
 // Initialize Vertex with your Cloud project and location
 const vertex_ai = new VertexAI({
-  project: 'utility-time-388516',
+  project: 'myvertexai-410504',
   location: 'us-central1'
 });
 const model = 'gemini-pro';

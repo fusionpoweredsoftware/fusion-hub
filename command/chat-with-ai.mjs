@@ -45,11 +45,12 @@ export async function start({
     await ai.init({ action, inputHistoryFilePath, outputHistoryFilePath, ...initParameters });
   }
   if (!ai.checkInitialized(sessionId) && startNewIfInitilizationFailed)
-    start.new(initParameters);
+    start.new(null, initParameters);
   return true;
 }
 
 start.new = async (
+  filename = null,
   initParameters = {},
   startType = 'new'
 ) => {
@@ -57,7 +58,7 @@ start.new = async (
   initParameters.newDefaultConsole ||= cli.output;
   const { isPersistent = true } = initParameters;
   if (typeof initParameters !== 'object') {
-    cliErrors.noArgumentsAllowedError();
+    cliErrors.argumentsLimitError(1);
     return false;
   }
   const { sessionId = 0 } = initParameters;
@@ -116,6 +117,11 @@ start.new = async (
   if (startType=='new')
     currentInputHistoryFilePath=null;
   await ai.init({ action: "Starting "+startType, ...initParameters });
+  if (filename)
+  {
+    currentInputHistoryFilePath = filename
+    return await start.new()
+  }
   return true;
 }
 
@@ -168,7 +174,7 @@ start.old = async (historyJsonFilePath=null,
     await fs.copyFile(inputHistoryFilePath, inputHistoryFilePath+".old"+oldCopy%L);
     await fs.writeFile(inputHistoryFilePath+".old", `${oldCopy++}`);
   }
-  await start.new(initParameters, startType);
+  await start.new(null, initParameters, startType);
   const oldCommandModeHistoryFilePath = addPeriodToBasename(inputHistoryFilePath.replace(/\.json$/g,''));
   const oldCommandModeHistoryFilePathSource = addPeriodToBasename(inputHistoryFilePathSource.replace(/\.json$/g,''));
   const commadeModeHistoryFilePath = await getCommandModeHistoryFilePath();
@@ -240,7 +246,7 @@ export async function process({ input, joinedInput: aiChatInput, settings = {} }
   if (input.length==0)
     isNew=true;
   if (isNew)
-    await start.new({ ...initParameters });
+    await start.new(null, { ...initParameters });
   else
     await start({initParameters});
   if (aiChatInput)
