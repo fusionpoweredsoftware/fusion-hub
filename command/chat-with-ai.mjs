@@ -1,9 +1,10 @@
 import fs from "fs/promises";
 import _fs from "fs";
-import { aiInstructionsForFilenameCreation } from 'fusion-hub/ai/instructions';
+import instructions from 'fusion-hub/ai/instructions';
 import { currentAiApiName } from "fusion-hub/variables";
 import { getCurrentChatHistoryFilePath, getChatHistoryDirPath, getCommandModeHistoryFilePath } from "fusion-hub/paths";
 import { expandFilePath, extractJSONFilename, addPeriodToBasename  } from "fusion-hub/functions";
+import setup from "fusion-hub/setup";
 import cli from "fusion-hub/cli";
 import path from 'path';
 
@@ -16,7 +17,8 @@ export const command = {
   isStartable: true
 };
 
-let currentInputHistoryFilePath = null;
+setup.settings['current-input-history-file-path'] ||= null;
+
 const { errors: cliErrors } = cli
 const ai = await import('fusion-hub/ai/api/'+currentAiApiName);
 ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
@@ -45,11 +47,12 @@ export async function start({
     await ai.init({ action, inputHistoryFilePath, outputHistoryFilePath, ...initParameters });
   }
   if (!ai.checkInitialized(sessionId) && startNewIfInitilizationFailed)
-    start.new(initParameters);
+    start.new(null, initParameters);
   return true;
 }
 
 start.new = async (
+  filename = null,
   initParameters = {},
   startType = 'new'
 ) => {
@@ -57,7 +60,7 @@ start.new = async (
   initParameters.newDefaultConsole ||= cli.output;
   const { isPersistent = true } = initParameters;
   if (typeof initParameters !== 'object') {
-    cliErrors.noArgumentsAllowedError();
+    cliErrors.argumentsLimitError(1);
     return false;
   }
   const { sessionId = 0 } = initParameters;
@@ -75,15 +78,15 @@ start.new = async (
       startNewIfInitilizationFailed: false
     });
     let suggestedFilenameSource, suggestedFilename, suggestedFilePath;
-    if (currentInputHistoryFilePath==null) {
+    if (setup.settings['current-input-history-file-path']==null) {
       suggestedFilenameSource = await ai.chat(
-        aiInstructionsForFilenameCreation(),
+        instructions.aiInstructionsForFilenameCreation(),
         { chatStdout: { write: () => {} }, isPersistent: false }
       );
       suggestedFilename = extractJSONFilename(suggestedFilenameSource) || temporaryHistoryFilename;
     }
     else {
-      suggestedFilePath = currentInputHistoryFilePath;
+      suggestedFilePath = setup.settings['current-input-history-file-path'];
       suggestedFilename = path.basename(suggestedFilePath);
     }
     const chatHistoryDirPath = await getChatHistoryDirPath();
@@ -100,9 +103,15 @@ start.new = async (
       suggestedFilePath=temporaryHistoryFilePath;
     } else
       suggestedFilename = path.basename(suggestedFilePath);
-    cli.output.log(
-      `New AI session started. Previous conversation saved as: ${suggestedFilename}`
-    );
+      if (startType==='specified') {
+        cli.output.log(
+          `Current conversation will be saved as: ${suggestedFilename}`
+        );
+      } else {
+        cli.output.log(
+          `Previous conversation saved as: ${suggestedFilename}`
+        );
+      }
     const newCommandModeHistoryFilePath = addPeriodToBasename(suggestedFilePath.replace(/\.json$/g,''));
     const commandModeHistoryFilePath = await getCommandModeHistoryFilePath();
     if (_fs.existsSync(commandModeHistoryFilePath))
@@ -114,8 +123,15 @@ start.new = async (
       );
   }
   if (startType=='new')
-    currentInputHistoryFilePath=null;
-  await ai.init({ action: "Starting "+startType, ...initParameters });
+    setup.settings['current-input-history-file-path']=null;
+  if (startType!='specified')
+    await ai.init({ action: "Starting "+startType, ...initParameters });
+  if (filename)
+  {
+    setup.settings['current-input-history-file-path'] = filename;
+    await setup.pushSetupSettings();
+    return await start.new(null, {}, 'specified');
+  }
   return true;
 }
 
@@ -140,7 +156,7 @@ start.old = async (historyJsonFilePath=null,
   const inputHistoryFilePathSource = await expandFilePath(prefix+historyJsonFilePath);
 
   if (startType=='template') {
-    initParameters.inputHistoryFilePath = await expandFilePath(`~~~/${path.basename(historyJsonFilePath)}`, { contextDir: 'fusion-hub/templates' });
+    initParameters.inputHistoryFilePath = await expandFilePath(`~~~/${path.basename(historyJsonFilePath)}`, { contextDir: 'templates' });
     if (_fs.existsSync(inputHistoryFilePathSource))
       await fs.copyFile(inputHistoryFilePathSource, initParameters.inputHistoryFilePath);
     else
@@ -168,7 +184,7 @@ start.old = async (historyJsonFilePath=null,
     await fs.copyFile(inputHistoryFilePath, inputHistoryFilePath+".old"+oldCopy%L);
     await fs.writeFile(inputHistoryFilePath+".old", `${oldCopy++}`);
   }
-  await start.new(initParameters, startType);
+  await start.new(null, initParameters, startType);
   const oldCommandModeHistoryFilePath = addPeriodToBasename(inputHistoryFilePath.replace(/\.json$/g,''));
   const oldCommandModeHistoryFilePathSource = addPeriodToBasename(inputHistoryFilePathSource.replace(/\.json$/g,''));
   const commadeModeHistoryFilePath = await getCommandModeHistoryFilePath();
@@ -177,9 +193,9 @@ start.old = async (historyJsonFilePath=null,
   else if (_fs.existsSync(oldCommandModeHistoryFilePathSource))
     await fs.copyFile(oldCommandModeHistoryFilePathSource, commadeModeHistoryFilePath);
   if (startType=='template')
-    currentInputHistoryFilePath = null;
+    setup.settings['current-input-history-file-path'] = null;
   else
-    currentInputHistoryFilePath = inputHistoryFilePath;
+    setup.settings['current-input-history-file-path'] = inputHistoryFilePath;
   return true;
 }
 
@@ -240,7 +256,7 @@ export async function process({ input, joinedInput: aiChatInput, settings = {} }
   if (input.length==0)
     isNew=true;
   if (isNew)
-    await start.new({ ...initParameters });
+    await start.new(null, { ...initParameters });
   else
     await start({initParameters});
   if (aiChatInput)

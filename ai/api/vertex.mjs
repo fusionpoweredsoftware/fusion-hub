@@ -1,7 +1,6 @@
 'use strict';
-import {
-  defaultAiInstructionsForConversationStart
-} from 'ai/instructions';
+import instructions from 'ai/instructions';
+import setup from 'fusion-hub/setup';
 
 const {
   emitWarning
@@ -29,18 +28,7 @@ let currentChatHistoryFilePath = './.ai-chat-history.json';
 let isInitialized = {};
 let defaultConsole = console;
 let defaultStdout = process.stdout;
-let defaultChatInstructions = defaultAiInstructionsForConversationStart;
-
-/*export const getInitialInput = (sessionId=0) => {
-  let isStartOfChat = (!aiChatsMap || !aiChatsMap[sessionId] || !aiChatsMap[sessionId].historyInternal || aiChatsMap[sessionId].historyInternal.length==0);
-  if (isStartOfChat)
-    return null;
-  if (aiChatsMap[sessionId].historyInternal.length>2) {
-    return aiChatsMap[sessionId].historyInternal[2];
-  } else {
-    return aiChatsMap[sessionId].historyInternal[0];
-  }
-}*/
+let defaultChatInstructions = instructions.defaultAiInstructionsForConversationStart;
 
 export const checkInitialized = (sessionId) => {
   return isInitialized[sessionId];
@@ -63,9 +51,10 @@ const {
 
 // Initialize Vertex with your Cloud project and location
 const vertex_ai = new VertexAI({
-  project: 'utility-time-388516',
+  project: setup.settings['vertex-ai-project'],
   location: 'us-central1'
 });
+
 const model = 'gemini-pro';
 
 
@@ -165,6 +154,10 @@ export const chat = async (textInput, {
   secondAttempt=false
 } = {}) => {
   try {
+    if (!setup.settings['vertex-ai-project']) {
+      console.log("ERROR: Unable to chat with AI. No Vertex AI project set!")
+      return;
+    }
     let history = aiChatsMap[sessionId].historyInternal;
     let freezeHistory = JSON.stringify(history);
     let isStreaming = false;
@@ -250,6 +243,12 @@ export async function init({
   sessionId = 0,
   isPersistent = true,
 } = {}) {
+  if (!setup.settings['vertex-ai-project']) {
+    if (!isInitialized[sessionId])
+      console.log("WARNING: No Vertex AI project set. Chat will error out!")
+    isInitialized[sessionId]=true;
+    return;
+  }
   try {
     if (outputHistoryFilePath) {
       currentChatHistoryFilePath = outputHistoryFilePath;
