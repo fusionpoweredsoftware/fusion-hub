@@ -1,13 +1,16 @@
 import readline from 'readline';
+
 import {
   defaultCommandPath,
   commandModuleRoot
 } from 'fusion-hub/paths';
+
 import {
   isLineHitNTimesInMS,
   pullCliHistory,
   pushCliHistory,
-  getTimestamp
+  getTimestamp,
+  getArgs
 } from 'fusion-hub/functions';
 
 export const properties = {
@@ -31,10 +34,10 @@ export const print = (data) => write((data||='')+'\n');
 
 let rl;
 
-export const executeCommand = async (input, settings, extensiveInputBuffer) => {
+export const executeCommand = async (input, settings = {}, extensiveInputBuffer = null) => {
   if (!input || !input.split)
     return;
-  input = input.trim().split(' ');
+  input = getArgs(input);
   if (input.length > 0 && input[0].length > 0) {
     const command = properties.commandMode ? properties.commandMode : input[0].toLowerCase();
     if (properties.lockModeTo && properties.lockModeTo != command)
@@ -66,10 +69,17 @@ export const executeCommand = async (input, settings, extensiveInputBuffer) => {
         commaDelimitedInput
       });
     } catch (err) {
-      if (err.code != 'ERR_MODULE_NOT_FOUND')
-        error(err);
+      if (settings.isThrowing)
+      {
+        throw err;
+      }
       else
-        commandNotFoundError();
+      {
+        if (err.code != 'ERR_MODULE_NOT_FOUND')
+          error(err);
+        else
+          commandNotFoundError();
+      }
     }
   }
 }
@@ -133,6 +143,7 @@ const noArgumentsAllowedError = () => error('Command takes no arguments.');
 const templateNotFoundError = () => error('Template not found');
 const noArgumentsSuppliedError = (minimum) => error(`Command takes ${minimum} argument${(minimum>1)?'s':''}.`);
 const argumentsLimitError = (limit) => error(`Command limited to ${limit} argument${(limit>1)?'s':''}.`);
+
 export default {
   properties,
   init,

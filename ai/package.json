@@ -4,11 +4,15 @@
   "description": "",
   "main": "main.js",
   "exports": {
-    "./instructions": "./instructions.mjs"
+    "./instructions": "./instructions.mjs",
+    "./setup": "./setup.mjs"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
+  "dependencies": {
+    "fusion-hub": "file:../"
+  },
   "license": "ISC"
 }

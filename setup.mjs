@@ -1,6 +1,4 @@
-import { getChatHistoryDirPath } from 'fusion-hub/paths';
-import fs from 'fs/promises';
-import _fs from 'fs';
+import { pullSetupSettings, pushSetupSettings } from 'fusion-hub/functions';
 
 async function init() {
   process.on('uncaughtException', async function(err) {
@@ -11,11 +9,12 @@ async function init() {
       console.log(err);
   });
   
-  if (!_fs.existsSync(await getChatHistoryDirPath())){
-    await fs.mkdir(await getChatHistoryDirPath(), { recursive: true });
-  }
+  await pullSetupSettings();
 }
 
 export default {
-    init
+    init,
+    settings: {},
+    pullSetupSettings, 
+    pushSetupSettings
 }

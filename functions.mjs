@@ -2,10 +2,19 @@ import os from 'os';
 import fs from "fs/promises";
 import _fs from "fs";
 import path from 'path';
+import setup from 'fusion-hub/setup';
 let codeBlockCounter = 0;
 
+export const getArgs = (input) => {
+  input = input.trim().match(/(?:[^\s']+|'[^'\\]*(?:\\.[^'\\]*)*')+/g);
+  for (let i = 0; i < input.length; i++)
+    if (input[i][0] == `'` && input[i].match(/'$/g))
+      input[i] = input[i].slice(1, -1).replace("\\\'","\'");
+  return input;
+}
+
 export const expandFilePath = async (filePath, {appCacheDir, contextDir}={}) => {
-  const { appCacheDir: currentAppCacheDir, defaultContextDir } = await import('fusion-hub/variables');
+  const { currentAppCacheDir, defaultContextDir } = await import('fusion-hub/paths');
   contextDir ||= defaultContextDir;
   appCacheDir ||= currentAppCacheDir;
   const fullFilePath = filePath.replace(/^\~\~\~/g, path.join(os.homedir(),"."+appCacheDir, contextDir)).replace(/^\~\~/g, path.join(os.homedir(),"."+appCacheDir)).replace(/^\~/g, os.homedir());
@@ -92,13 +101,15 @@ export const getChatStdout = (res, {
 export const pullCliHistory = async (rl, commandMode) => {
   const { getCommandModeHistoryFilePath, getCliHistoryFilePath } = await import('fusion-hub/paths');
   if (commandMode) {
-    if (_fs.existsSync(await getCommandModeHistoryFilePath()))
-      rl.history = (await fs.readFile((await getCommandModeHistoryFilePath()), 'utf-8')).split('\n').filter(line => line.trim() !== '');
+    const commandModeFileHistoryPath = await getCommandModeHistoryFilePath();
+    if (_fs.existsSync(commandModeFileHistoryPath))
+      rl.history = (await fs.readFile(commandModeFileHistoryPath, 'utf-8')).split('\n').filter(line => line.trim() !== '');
     else
       rl.history = [];
   } else {
-    if (_fs.existsSync(await getCliHistoryFilePath()))
-      rl.history = (await fs.readFile((await getCliHistoryFilePath()), 'utf-8')).split('\n').filter(line => line.trim() !== '');
+    const cliHistoryFilePath = await await getCliHistoryFilePath()
+    if (_fs.existsSync(cliHistoryFilePath))
+      rl.history = (await fs.readFile(cliHistoryFilePath, 'utf-8')).split('\n').filter(line => line.trim() !== '');
     else
       rl.history = [];
   }
@@ -111,6 +122,26 @@ export const pushCliHistory = async (rl, commandMode) => {
   } else {
     await fs.writeFile((await getCliHistoryFilePath()), rl.history.filter(line => line.trim() !== '').join('\n'));
   }
+}
+
+
+export const pullSetupSettings = async () => {
+  const { getSetupSettingsFilePath } = await import('fusion-hub/paths');
+  const setupSettingsFilePath = await getSetupSettingsFilePath();
+  let fileText = '', settings = {};
+  if (_fs.existsSync(setupSettingsFilePath)) {
+    fileText = await fs.readFile(setupSettingsFilePath, 'utf-8');
+    settings = JSON.parse(fileText);
+  }
+  Object.assign(setup.settings, settings);
+}
+
+export const pushSetupSettings = async () => {
+  const { getSetupSettingsFilePath } = await import('fusion-hub/paths');
+  const setupSettingsFilePath = await getSetupSettingsFilePath();
+  const settings = setup.settings || {};
+  const fileText = JSON.stringify(settings);
+  await fs.writeFile(setupSettingsFilePath, fileText);
 }
 
 export function getTimestamp() {
