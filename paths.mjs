@@ -3,7 +3,6 @@ import { expandFilePath } from 'fusion-hub/functions';
 import { app } from 'fusion-hub/variables';
 export const getAppCacheDirPath = async () => (await expandFilePath('~~'));
 export const getChatHistoryDirPath = async () => (await expandFilePath('~~~'));
-//add a templates path for histories that shouldn't change
 export const getChatTemplateDirPath = async () => (await expandFilePath('~~~', {contextDir: 'templates'}));
 export const getCliHistoryFilePath = async () => (await expandFilePath(`~~/.${app.name}-cli-history`));
 export const getCommandModeHistoryFilePath = async () => (await expandFilePath(`~~/.${app.name}-cmd-mode-history`));

@@ -119,8 +119,8 @@ start.new = async (
   await ai.init({ action: "Starting "+startType, ...initParameters });
   if (filename)
   {
-    currentInputHistoryFilePath = filename
-    return await start.new()
+    currentInputHistoryFilePath = filename;
+    return await start.new();
   }
   return true;
 }
