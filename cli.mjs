@@ -34,7 +34,7 @@ export const print = (data) => write((data||='')+'\n');
 
 let rl;
 
-export const executeCommand = async (input, settings = {}, extensiveInputBuffer) => {
+export const executeCommand = async (input, settings = {}, extensiveInputBuffer=null) => {
   if (!input || !input.split)
     return;
   input = getArgs(input);
