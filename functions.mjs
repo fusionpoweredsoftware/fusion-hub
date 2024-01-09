@@ -5,10 +5,10 @@ import path from 'path';
 let codeBlockCounter = 0;
 
 export const getArgs = (input) => {
-  input = input.trim().match(/(?:[^\s"]+|"[^"\\]*(?:\\.[^"\\]*)*")+/g);
+  input = input.trim().match(/(?:[^\s']+|'[^'\\]*(?:\\.[^'\\]*)*')+/g);
   for (let i = 0; i < input.length; i++)
-    if (input[i][0] == `"` && input[i].match(/"$/g))
-      input[i] = input[i].slice(1, -1).replace("\\\"","\"");
+    if (input[i][0] == `'` && input[i].match(/'$/g))
+      input[i] = input[i].slice(1, -1).replace("\\\'","\'");
   return input;
 }
 

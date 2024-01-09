@@ -1,8 +1,10 @@
 import { getMjsFilePathsInDirectory } from 'fusion-hub/functions';
 import { expandFilePath } from 'fusion-hub/functions';
-import { executeCommand, error, properties as cliProperties } from 'fusion-hub/cli';
+import { executeCommand, error, log, properties as cliProperties } from 'fusion-hub/cli';
 import path from 'path';
-import fs from 'fs/promises'
+import fs from 'fs/promises';
+import _fs from 'fs';
+import crypto from 'crypto';
 
 export const command = {
     id: "multi-command",
@@ -14,17 +16,56 @@ export const command = {
   };
 
 export async function process({input, joinedInput}) {
-    let commandText = await fs.readFile(input[0], 'utf-8')
-    const historyFile = await expandFilePath(path.join('~~~', input[0] + `-${new Date()
-        .toISOString()
-        .replace(/:/g, "-")
-        .slice(0, 19)}`), {contextDir: 'multi-command-history'})
+    let readFilePath = await expandFilePath(input[0], {contextDir: 'fusion-hub/multi-command-history'})
+    let commandText = await fs.readFile(readFilePath, 'utf-8')
+    commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n')
+    let hashCommandText = commandText.replace(/multi-command [^ ]+/, '')
+    const hash = crypto.createHash('sha256').update(hashCommandText).digest('hex');
 
-    await fs.writeFile(historyFile, commandText.replace(/^[^\n]+\n/, joinedInput))
+
+    let historyFilename = path.basename(input[0])
+    if (/-[0-9a-f]{64}/.test(historyFilename))
+    {
+        historyFilename = historyFilename.replace(/-[^ ]{64}$/, '-' + hash)
+    }
+    else
+    {
+        historyFilename += hash
+    }
+
+    const historyFileShortPath = path.join('~~~', historyFilename)
+    const historyFile = await expandFilePath(historyFileShortPath, {contextDir: 'fusion-hub/multi-command-history'})
+    let historyExists = _fs.existsSync(historyFile)
+    
+    if (!historyExists)
+    {
+        await fs.writeFile(historyFile, commandText)
+        
+        log(`Creating history file as: ${historyFileShortPath}`)
+    }
+    else
+    {
+        log(`History file ${historyFile} already exists.`)
+    }
 
     let headerVariables = commandText.split(/\r\n|\n/)
     let commands = commandText.split(new RegExp(headerVariables[1]))
+    headerVariables = commands[0].split(/\r\n|\n/)
     const stopCommand = headerVariables[2]
+    let scriptStart=3
+    for (; scriptStart<headerVariables.length; scriptStart++)
+    {
+        if (headerVariables[scriptStart]=='script:')
+            break;
+    }
+
+    let script={}
+    if (headerVariables.length > scriptStart)
+    {
+        let codeToEval=headerVariables.slice(scriptStart+1).join('\n')
+
+        eval(codeToEval)
+    }
 
     for (let i=1; i<commands.length; i++)
     {
@@ -35,7 +76,7 @@ export async function process({input, joinedInput}) {
         else 
         {
             try {
-                await executeCommand(commands[i], { isThrowing: true });
+                await executeCommand(eval(`\`${commands[i]}\``), { isThrowing: true });
             } catch (err)
             {
                 error(err + '\nAdditional information: failed on sub-command: ' + command[i]);
