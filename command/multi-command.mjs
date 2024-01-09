@@ -1,5 +1,6 @@
 import { getMjsFilePathsInDirectory } from 'fusion-hub/functions';
-import cli, {executeCommand, properties, error} from 'fusion-hub/cli';
+import  { expandFilePath } from 'fusion-hub/paths'
+import cli, { executeCommand, properties, error } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises'
 const { properties: cliProperties } = cli;
@@ -29,12 +30,18 @@ export const command = {
 //     }
 // }
 
-export async function process({input}) {
+export async function process({input, joinedInput}) {
     let commandText = await fs.readFile(input[0], 'utf-8')
+    const historyFile = expandFilePath(path.join('~~~', input[0] + `-${new Date()
+        .toISOString()
+        .replace(/:/g, "-")
+        .slice(0, 19)}`), {contextDir: 'multi-command-history'})
+
+    await fs.writeFile(historyFile, commandText.replace(/^[^\n]+\n/, joinedInput))
 
     let headerVariables = commandText.split(/\r\n|\n/)
-    let commands = commandText.split(new RegExp(headerVariables[0]))
-    const stopCommand = headerVariables[1]
+    let commands = commandText.split(new RegExp(headerVariables[1]))
+    const stopCommand = headerVariables[2]
 
     for (let i=1; i<commands.length; i++)
     {
