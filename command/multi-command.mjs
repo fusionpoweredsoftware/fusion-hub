@@ -15,7 +15,7 @@ export const command = {
 
 export async function process({input, joinedInput}) {
     let commandText = await fs.readFile(input[0], 'utf-8')
-    const historyFile = expandFilePath(path.join('~~~', input[0] + `-${new Date()
+    const historyFile = await expandFilePath(path.join('~~~', input[0] + `-${new Date()
         .toISOString()
         .replace(/:/g, "-")
         .slice(0, 19)}`), {contextDir: 'multi-command-history'})
