@@ -10,7 +10,7 @@ export const command = {
     id: "multi-command",
     name: "multi-command",
     description: "Run multiple commands from a file.",
-    examples: `multi-command <file.txt>`,
+    examples: `multi-command <file.txt> [parameters]`,
     isInputCaseSensitive: false,
     isStartable: false
   };
