@@ -16,6 +16,11 @@ export const command = {
   };
 
 export async function process({input, joinedInput}) {
+    if (input.length < 1 || input[0] == '')
+    {
+        log(command.examples)
+        return
+    }
     let readFilePath = await expandFilePath(input[0], {contextDir: 'fusion-hub/multi-command-history'})
     let commandText = await fs.readFile(readFilePath, 'utf-8')
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n')
