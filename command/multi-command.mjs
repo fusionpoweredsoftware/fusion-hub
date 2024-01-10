@@ -73,12 +73,12 @@ export async function process({input, joinedInput}) {
             if (commandAndCode.length == 2)
             {
                 let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                codeToEvalFinal += 'evalCommand(`' + escapedCommand + '`, stopCommand);\n' + commandAndCode[1] + '\n'
+                codeToEvalFinal += 'await evalCommand(`' + escapedCommand + '`, stopCommand);\n' + commandAndCode[1] + '\n'
             }
             else if (commandAndCode.length == 1)
             {
                 let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                codeToEvalFinal += 'evalCommand(`' + escapedCommand + '`, stopCommand);\n'
+                codeToEvalFinal += 'await evalCommand(`' + escapedCommand + '`, stopCommand);\n'
             }
             else if (commandAndCode.length > 2)
             {
@@ -86,7 +86,7 @@ export async function process({input, joinedInput}) {
             }
         }
 
-        eval('let script={};\n' + codeToEvalFinal)
+        eval("(async () => {" + codeToEvalFinal + "})()" )
     }
 }
 
