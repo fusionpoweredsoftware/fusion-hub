@@ -37,6 +37,9 @@ function extractJson5Objects(text) {
 }
 
 export const filterOutput = (output, filterSettings=null) => {
+  if (output == null)
+    return output
+  
   if (filterSettings.typeOfVar == 'JSON')
   {
     return extractJson5Objects(output);

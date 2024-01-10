@@ -1,6 +1,6 @@
 **The adventure game template**
 (?:\r\n|\n)----(?:\r\n|\n)
-(?:\r\n|\n)(?:\$\$\$\$)
+(?:\$\$\$\$)
 stopCommand()
 script:
 
@@ -36,7 +36,7 @@ let N=10;
 for (let i=0; i < 2; i++)
 {
 
-----
+----(myVar, JSON)
 Make a game story outline ${script.json.theme} themed adventure game with ${N} chapters.
 Each chapter must be composed of a series of evevts.$
 ----
@@ -45,9 +45,9 @@ where each chapter_i is of the form { chapterTitle, shortChapterDescrition }.
 Make sure you do *ALL* of the chapters.
 $$$$
 
-for (i=0; i<$(n); i++)
+for (i=0; i<$(N); i++)
 {
-    ----(myVar, JSON)
+    ----
     Put chapter ${i} into a JSON object of the form {chapterTitle, chapter, event_1, event_2, event_3,..., event_K }, where K is the number of events in the chapter in the outline you wrote.  Do not leave out any events.
     $$$$
 }

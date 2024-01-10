@@ -1,4 +1,4 @@
-import { expandFilePath } from 'fusion-hub/functions';
+import { expandFilePath, filterOutput } from 'fusion-hub/functions';
 import { executeCommand, error, log, properties as cliProperties } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
@@ -92,6 +92,8 @@ export async function process({input, joinedInput}) {
 
 async function evalCommand(command, stopCommand, varType)
 {
+    let output = null;
+
     if (command == stopCommand)
     {
         cliProperties.commandMode = null;
@@ -99,14 +101,14 @@ async function evalCommand(command, stopCommand, varType)
     else 
     {   
         try {
-            let output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
-            output = await filterOutput(output, {typeOfVar: 'JSON'});
+            await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
+            output = await filterOutput(output || null, {typeOfVar: 'JSON'});
         } catch (err)
         {
             error(err + '\nAdditional information:\n\nFailed on sub-command:\n' + command);
         }
     }
 
-    return output
+    return output;
 }
 
