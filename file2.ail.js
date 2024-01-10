@@ -1,6 +1,6 @@
 **The adventure game template**
-(?:\r\n|\n)----(?:\r\n|\n)
-(?:\$\$\$\$)
+(?:\r\n|\n)[ ]*----(?:\r\n|\n)?
+(?:\r?\n?\$\$\$\$)
 stopCommand()
 script:
 

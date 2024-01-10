@@ -67,23 +67,46 @@ export async function process({input, joinedInput}) {
 
         let codeToEvalSplit = codeToEval.split(new RegExp(lines[1]));
         let codeToEvalFinal = codeToEvalSplit[0];
+        let commandBlockClosed = true;
+        
+        let commandAndCode = null
         for (let i=1; i < codeToEvalSplit.length; i++)
         {
-            let commandAndCode = codeToEvalSplit[i].split(new RegExp(lines[2]))
-            if (commandAndCode.length == 2)
+            commandAndCode = codeToEvalSplit[i].split(new RegExp(lines[2]))
+
+            if (commandAndCode.length >= 1 && commandAndCode.length <= 2)
             {
+                let prependAssignement = '';
+                let varType = 'null';
+                let matches = commandAndCode[0].match(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m);
+                if (matches != null)
+                {
+                    prependAssignement = matches.groups.varName ? ('let ' + matches.groups.varName + '=') : null;
+                    varType = matches.groups.varType || null;
+                
+                    if (prependAssignement && varType && (varType == 'JSON' || varType == 'text'))
+                    {
+                        commandAndCode[0] = commandAndCode[0].replace(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m, '')
+                    }
+                    else
+                    {
+                        error('Invalid command assignment: (' + matches.groups.varName + ', ' + varType + ')');
+                    }
+                }
                 let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                codeToEvalFinal += 'await evalCommand(`' + escapedCommand + '`, stopCommand);\n' + commandAndCode[1] + '\n'
-            }
-            else if (commandAndCode.length == 1)
-            {
-                let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                codeToEvalFinal += 'await evalCommand(`' + escapedCommand + '`, stopCommand);\n'
+                codeToEvalFinal += prependAssignement + 'await evalCommand(`' + escapedCommand + '`, stopCommand, `' + varType + '`);\n' 
+                codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1] + '\n': '';
+
             }
             else if (commandAndCode.length > 2)
             {
-                log('Invalid syntax: Double terminator detected.');
+                error('Invalid syntax: Double terminator detected.');
             }
+        }
+
+        if (commandAndCode && commandAndCode.length != 2)
+        {
+            error('Open command without close.');
         }
 
         eval("(async () => {" + codeToEvalFinal + "})()" )
@@ -101,8 +124,11 @@ async function evalCommand(command, stopCommand, varType)
     else 
     {   
         try {
-            await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
-            output = await filterOutput(output || null, {typeOfVar: 'JSON'});
+            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
+            if (varType && output)
+            {
+                output = await filterOutput(output || null, {typeOfVar: varType});
+            }
         } catch (err)
         {
             error(err + '\nAdditional information:\n\nFailed on sub-command:\n' + command);
