@@ -18,74 +18,92 @@ export const command = {
 export async function process({input, joinedInput}) {
     if (input.length < 1 || input[0] == '')
     {
-        log(command.examples)
-        return
+        log(command.examples);
+        return;
     }
-    let readFilePath = await expandFilePath(input[0], {contextDir: 'fusion-hub/multi-command-history'})
-    let commandText = await fs.readFile(readFilePath, 'utf-8')
-    commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n')
-    let hashCommandText = commandText.replace(/multi-command [^ ]+/, '')
+    let readFilePath = await expandFilePath(input[0], {contextDir: 'fusion-hub/multi-command-history'});
+    let commandText = await fs.readFile(readFilePath, 'utf-8');
+    commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
+    let hashCommandText = commandText.replace(/multi-command [^ ]+/, '');
     const hash = crypto.createHash('sha256').update(hashCommandText).digest('hex');
 
 
-    let historyFilename = path.basename(input[0])
+    let historyFilename = path.basename(input[0]);
     if (/-[0-9a-f]{64}/.test(historyFilename))
     {
-        historyFilename = historyFilename.replace(/-[^ ]{64}$/, '-' + hash)
+        historyFilename = historyFilename.replace(/-[^ ]{64}$/, '-' + hash);
     }
     else
     {
-        historyFilename += hash
+        historyFilename += hash;
     }
 
-    const historyFileShortPath = path.join('~~~', historyFilename)
-    const historyFile = await expandFilePath(historyFileShortPath, {contextDir: 'fusion-hub/multi-command-history'})
-    let historyExists = _fs.existsSync(historyFile)
+    const historyFileShortPath = path.join('~~~', historyFilename);
+    const historyFile = await expandFilePath(historyFileShortPath, {contextDir: 'fusion-hub/multi-command-history'});
+    let historyExists = _fs.existsSync(historyFile);
     
     if (!historyExists)
     {
-        await fs.writeFile(historyFile, commandText)
+        await fs.writeFile(historyFile, commandText);
         
-        log(`Creating history file as: ${historyFileShortPath}`)
+        log(`Creating history file as: ${historyFileShortPath}`);
     }
     else
     {
-        log(`History file ${historyFile} already exists.`)
+        log(`History file ${historyFile} already exists.`);
     }
 
-    let headerVariables = commandText.split(/\r\n|\n/)
-    let commands = commandText.split(new RegExp(headerVariables[1]))
-    headerVariables = commands[0].split(/\r\n|\n/)
-    const stopCommand = headerVariables[2]
-    let scriptStart=3
-    for (; scriptStart<headerVariables.length; scriptStart++)
+    let lines = commandText.split(/\r\n|\n/);
+    const stopCommand = lines[3];
+    let scriptStart=3;
+    for (; scriptStart<lines.length; scriptStart++)
     {
-        if (headerVariables[scriptStart]=='script:')
+        if (lines[scriptStart]=='script:')
             break;
     }
-
-    let script={}
-    if (headerVariables.length > scriptStart)
+    let script={};
+    if (lines.length > scriptStart)
     {
-        let codeToEval=headerVariables.slice(scriptStart+1).join('\n')
+        let codeToEval= '\n' + lines.slice(scriptStart+1).join('\n');
 
-        eval(codeToEval)
-    }
-
-    for (let i=1; i<commands.length; i++)
-    {
-        if (commands[i] == stopCommand)
+        let codeToEvalSplit = codeToEval.split(new RegExp(lines[1]));
+        let codeToEvalFinal = codeToEvalSplit[0];
+        for (let i=1; i < codeToEvalSplit.length; i++)
         {
-            cliProperties.commandMode = null;
-        }
-        else 
-        {
-            try {
-                await executeCommand(eval(`\`${commands[i]}\``), { isThrowing: true });
-            } catch (err)
+            let commandAndCode = codeToEvalSplit[i].split(new RegExp(lines[2]))
+            if (commandAndCode.length == 2)
             {
-                error(err + '\nAdditional information: failed on sub-command: ' + command[i]);
+                let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
+                codeToEvalFinal += 'evalCommand(`' + escapedCommand + '`, stopCommand);\n' + commandAndCode[1] + '\n'
             }
+            else if (commandAndCode.length == 1)
+            {
+                let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
+                codeToEvalFinal += 'evalCommand(`' + escapedCommand + '`, stopCommand);\n'
+            }
+            else if (commandAndCode.length > 2)
+            {
+                log('Invalid syntax: Double terminator detected.');
+            }
+        }
+
+        eval('let script={};\n' + codeToEvalFinal)
+    }
+}
+
+async function evalCommand(command, stopCommand)
+{
+    if (command == stopCommand)
+    {
+        cliProperties.commandMode = null;
+    }
+    else 
+    {
+        try {
+            await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
+        } catch (err)
+        {
+            error(err + '\nAdditional information:\n\nFailed on sub-command:\n' + command);
         }
     }
 }
