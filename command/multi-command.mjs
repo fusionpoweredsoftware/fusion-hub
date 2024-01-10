@@ -90,20 +90,23 @@ export async function process({input, joinedInput}) {
     }
 }
 
-async function evalCommand(command, stopCommand)
+async function evalCommand(command, stopCommand, varType)
 {
     if (command == stopCommand)
     {
         cliProperties.commandMode = null;
     }
     else 
-    {
+    {   
         try {
-            await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
+            let output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
+            output = await filterOutput(output, {typeOfVar: 'JSON'});
         } catch (err)
         {
             error(err + '\nAdditional information:\n\nFailed on sub-command:\n' + command);
         }
     }
+
+    return output
 }
 

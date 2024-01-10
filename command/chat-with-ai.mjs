@@ -260,5 +260,5 @@ export async function process({ input, joinedInput: aiChatInput, settings = {} }
   else
     await start({initParameters});
   if (aiChatInput)
-    await ai.chat(aiChatInput, aiChatSettings);
+    return await ai.chat(aiChatInput, aiChatSettings);
 }
