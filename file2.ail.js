@@ -47,7 +47,7 @@ $$$$
 
 for (i=0; i<$(n); i++)
 {
-    ----
+    ----(myVar, JSON)
     Put chapter ${i} into a JSON object of the form {chapterTitle, chapter, event_1, event_2, event_3,..., event_K }, where K is the number of events in the chapter in the outline you wrote.  Do not leave out any events.
     $$$$
 }
