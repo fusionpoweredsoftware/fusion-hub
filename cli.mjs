@@ -58,7 +58,7 @@ export const executeCommand = async (input, settings = {}, extensiveInputBuffer 
       for (let i = 0; i < commaDelimitedInput.length; i++) {
         commaDelimitedInput.push(commaDelimitedInput[i].split(" "));
       }
-      await importedCommand.process({
+      return await importedCommand.process({
         input,
         joinedInput,
         lowercaseJoinedInput,

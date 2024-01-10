@@ -18,6 +18,7 @@
   "dependencies": {
     "@google-cloud/aiplatform": "^3.9.0",
     "@google-cloud/vertexai": "^0.2.0",
-    "ai": "./ai"
+    "ai": "./ai",
+    "json5": "^2.2.3"
   }
 }

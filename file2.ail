@@ -1,0 +1,39 @@
+**The adventure game template**
+(?:\r\n|\n){3}
+(?:\r\n|\n)\$\$\$\$
+stopCommand()
+script:
+
+let script={};
+
+
+setup vertex-ai-project as myvertexai-410504
+
+
+start new chat-with-ai game-design-conversation.json
+$$$$
+
+script.defaultJSON=`{"theme": "Back-to-the-future"}`
+script.json=JSON.parse(input[1] || script.defaultJSON) 
+console.log('hello world')
+
+for (let i=0; i < 2; i++)
+{
+
+
+Make a story outline for an ${script.json.theme} themed adventure game, and put into a JSON object of the form { title, startGameStory, chapter_1, chapter_2, chapter_3, ... , chapter_N} where each event is of the form { shortChapterDescription, longChatperDescription }.
+
+
+Create an array of JSON objects with details of each room in the form { name, description } for event1
+Now provide an array of unique items in the form { name, description, command, combination } where command
+is the text adventure command that the player has to perform with the item to make progress with it. Alternatively,
+you can create a combination array which would be the array of items that are combined to make this item. If no
+combination was required, simply leave the array empty.
+
+IMPORTANT: Make sure to list every combination item in the inventory list and ONLY USE ENGLISH.
+$$$$
+}
+
+
+stopCommand()
+$4$$
