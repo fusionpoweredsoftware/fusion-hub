@@ -1,7 +1,6 @@
 'use strict';
-import {
-  defaultAiInstructionsForConversationStart
-} from 'ai/instructions';
+import instructions from 'ai/instructions';
+import setup from 'ai/setup';
 
 const {
   emitWarning
@@ -29,18 +28,7 @@ let currentChatHistoryFilePath = './.ai-chat-history.json';
 let isInitialized = {};
 let defaultConsole = console;
 let defaultStdout = process.stdout;
-let defaultChatInstructions = defaultAiInstructionsForConversationStart;
-
-/*export const getInitialInput = (sessionId=0) => {
-  let isStartOfChat = (!aiChatsMap || !aiChatsMap[sessionId] || !aiChatsMap[sessionId].historyInternal || aiChatsMap[sessionId].historyInternal.length==0);
-  if (isStartOfChat)
-    return null;
-  if (aiChatsMap[sessionId].historyInternal.length>2) {
-    return aiChatsMap[sessionId].historyInternal[2];
-  } else {
-    return aiChatsMap[sessionId].historyInternal[0];
-  }
-}*/
+let defaultChatInstructions = instructions.defaultAiInstructionsForConversationStart;
 
 export const checkInitialized = (sessionId) => {
   return isInitialized[sessionId];
@@ -61,29 +49,18 @@ const {
   HarmBlockThreshold,
 } = await import('@google-cloud/vertexai');
 
-// Initialize Vertex with your Cloud project and location
-const vertex_ai = new VertexAI({
-  project: 'myvertexai-410504',
-  location: 'us-central1'
-});
-const model = 'gemini-pro';
+let old_project;
 
+// Initialize Vertex with your Cloud project and location
+const getVertexAI = (project) => (new VertexAI({
+  project,
+  location: 'us-central1'
+}))
+
+const model = 'gemini-pro';
+let generativeModel = null;
 
 // Instantiate the models
-const generativeModel = await vertex_ai.preview.getGenerativeModel({
-  model: model,
-  "generation_config": {
-    "maxOutputTokens": 2048,
-    "temperature": 0.9,
-    "topP": 1
-  },
-  "safety_settings": [
-    {
-      category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    },
-  ]
-});
 
 export async function clearMemory(clearMemoryConsole = console, sessionId = 0) {
   try {
@@ -165,6 +142,10 @@ export const chat = async (textInput, {
   secondAttempt=false
 } = {}) => {
   try {
+    if (!setup.settings['vertex-ai-project']) {
+      console.log("ERROR: Unable to chat with AI. No Vertex AI project set!")
+      return;
+    }
     let history = aiChatsMap[sessionId].historyInternal;
     let freezeHistory = JSON.stringify(history);
     let isStreaming = false;
@@ -236,6 +217,34 @@ export function getCurrentChatHistoryFilename(sessionId = 0) {
   return currentChatHistoryFilePath + (sessionId ? '.' + sessionId : '');
 }
 
+const initModel = async (sessionId) => {
+  const project = setup.settings['vertex-ai-project'];
+  if (!project) {
+    if (!isInitialized[sessionId])
+      console.log("WARNING: No Vertex AI project set. Chat will error out!")
+    isInitialized[sessionId]=true;
+    return;
+  }
+  if (!project || old_project!=project) {
+    old_project = project;
+    const vertex_ai = await getVertexAI(project);
+    generativeModel = await vertex_ai.preview.getGenerativeModel({
+      model: model,
+      "generation_config": {
+        "maxOutputTokens": 2048,
+        "temperature": 0.9,
+        "topP": 1
+      },
+      "safety_settings": [
+        {
+          category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+          threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        },
+      ]
+    });
+  }
+}
+
 export async function init({
   action = 'Initializing',
   inputHistoryFilePath = null,
@@ -250,6 +259,7 @@ export async function init({
   sessionId = 0,
   isPersistent = true,
 } = {}) {
+  await initModel(sessionId);
   try {
     if (outputHistoryFilePath) {
       currentChatHistoryFilePath = outputHistoryFilePath;

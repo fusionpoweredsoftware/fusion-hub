@@ -71,14 +71,14 @@ export const executeCommand = async (input, settings = {}, extensiveInputBuffer 
     } catch (err) {
       if (settings.isThrowing)
       {
+        throw err;
+      }
+      else
+      {
         if (err.code != 'ERR_MODULE_NOT_FOUND')
           error(err);
         else
           commandNotFoundError();
-      }
-      else
-      {
-        throw err;
       }
     }
   }

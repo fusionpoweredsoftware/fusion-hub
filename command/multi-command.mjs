@@ -1,4 +1,3 @@
-import { getMjsFilePathsInDirectory } from 'fusion-hub/functions';
 import { expandFilePath } from 'fusion-hub/functions';
 import { executeCommand, error, log, properties as cliProperties } from 'fusion-hub/cli';
 import path from 'path';
@@ -21,7 +20,7 @@ export async function process({input, joinedInput}) {
         log(command.examples);
         return;
     }
-    let readFilePath = await expandFilePath(input[0], {contextDir: 'fusion-hub/multi-command-history'});
+    let readFilePath = await expandFilePath(input[0], {contextDir: 'multi-command-history'})
     let commandText = await fs.readFile(readFilePath, 'utf-8');
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
     let hashCommandText = commandText.replace(/multi-command [^ ]+/, '');
@@ -39,7 +38,7 @@ export async function process({input, joinedInput}) {
     }
 
     const historyFileShortPath = path.join('~~~', historyFilename);
-    const historyFile = await expandFilePath(historyFileShortPath, {contextDir: 'fusion-hub/multi-command-history'});
+    const historyFile = await expandFilePath(historyFileShortPath, {contextDir: 'multi-command-history'});
     let historyExists = _fs.existsSync(historyFile);
     
     if (!historyExists)
@@ -107,3 +106,4 @@ async function evalCommand(command, stopCommand)
         }
     }
 }
+
