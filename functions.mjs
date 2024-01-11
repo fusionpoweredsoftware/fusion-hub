@@ -39,7 +39,7 @@ function extractJson5Objects(text) {
 export const filterOutput = (output, filterSettings=null) => {
   if (output == null)
     return output
-  
+
   if (filterSettings.typeOfVar == 'JSON')
   {
     return extractJson5Objects(output);
@@ -205,3 +205,5 @@ export function getTimestamp() {
 }
 
 export const addPeriodToBasename = (filePath) => path.join(path.dirname(filePath), `.${path.basename(filePath)}`);
+
+export const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))

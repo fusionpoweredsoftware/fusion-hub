@@ -1,9 +1,11 @@
-import { expandFilePath, filterOutput } from 'fusion-hub/functions';
+import { expandFilePath, filterOutput, sleep } from 'fusion-hub/functions';
 import { executeCommand, error, log, properties as cliProperties } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
 import crypto from 'crypto';
+import json5 from 'json5'
+
 
 export const command = {
     id: "multi-command",
@@ -109,6 +111,7 @@ export async function process({input, joinedInput}) {
             error('Open command without close.');
         }
 
+        log("(async () => {" + codeToEvalFinal + "})()")
         eval("(async () => {" + codeToEvalFinal + "})()" )
     }
 }
@@ -125,9 +128,19 @@ async function evalCommand(command, stopCommand, varType)
     {   
         try {
             output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
-            if (varType && output)
+            if (varType!='null' && output!=null && output != undefined)
             {
-                output = await filterOutput(output || null, {typeOfVar: varType});
+                output = await filterOutput(output, {typeOfVar: varType});
+            }
+            if ((output==undefined || output==null) && varType!='null')
+            {
+                // Maybe we're overloaded? Wait 5 seconds.
+                await sleep(5000)
+                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON5 out.  You must produce valid JSON5.\``), { isThrowing: true });
+                if (varType && output)
+                {
+                    output = await filterOutput(output || null, {typeOfVar: varType});
+                }
             }
         } catch (err)
         {
