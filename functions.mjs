@@ -10,7 +10,7 @@ let codeBlockCounter = 0;
 function extractJson5Objects(text) {
   let braceCount = 0;
   let startIndex = 0;
-  const jsonObjects = [];
+  let jsonObjects = [];
 
   for (let i = 0; i < text.length; i++) {
       if (text[i] === '{') {
@@ -26,7 +26,7 @@ function extractJson5Objects(text) {
                   const jsonObj = json5.parse(text.substring(startIndex, i + 1));
                   jsonObjects.push(jsonObj);
               } catch (e) {
-                  jsonObjects = []]// Ignore if the string is not a valid JSON5 object
+                  jsonObjects = [] // Ignore if the string is not a valid JSON5 object
               }
           }
       }

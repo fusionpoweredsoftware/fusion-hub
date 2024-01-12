@@ -52,7 +52,10 @@ export const executeCommand = async (input, settings = {}, extensiveInputBuffer 
       const importedCommand = await import(commandModulePath);
       if (!importedCommand.command.isInputCaseSensitive) {
         joinedInput = lowercaseJoinedInput;
-        input = joinedInput.split(" ");
+        for (let i=0; i<input.length; i++)
+        {
+          input[i] = input[i].toLowerCase()
+        }
       }
       const joinedCommaDelimitedInput = joinedInput.split(","), commaDelimitedInput = [];
       for (let i = 0; i < commaDelimitedInput.length; i++) {

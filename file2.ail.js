@@ -6,6 +6,7 @@ script:
 
 let script={};
 
+// kludge
 function isIterable(obj) 
 {
     // checks for null and undefined
@@ -63,6 +64,7 @@ Put the story design into a JSON5 (no quotes around variables) object of the for
 Make sure you do *ALL* of the chapters.  Note, only in this case I put a null to skip the 0th array entry.  Do not expand the chapter yet.  Just put it in this JSON5 (no quotes around variables) format verbatim.  The chapterText string must contain *all* of the text you generated for the chapter from your previous response copied verbatim for each chapter.  The point of this is simply to put your previous response into JSON5 form.
 */
 
+// kludge
 if (myGameJSON == null || !myGameJSON.chapters || !isIterable(myGameJSON.chapters) || myGameJSON.chapters.length == 0)
     myGameJSON = await repeatCommand();
 
@@ -91,6 +93,7 @@ for (let i=1; i<=N; i++)
 
     myGameJSON.chapters[i].chapterDetails=chapterJson
 
+    // kludge
     if (myGameJSON == null || !chapterJson.objectives || !isIterable(chapterJson.objectives) || chapterJson.objectives.length == 0)
         myGameJSON = await repeatCommand();
 
@@ -121,7 +124,7 @@ for (let i=1; i<=N; i++)
             ]
         }
             
-        Note here I use "..." to indicate there may be multiple JSON5 (no quotes around variables) objects in an array. You may not include "..." in your response.  You must completely fill in the arrays.  Where all of the adventure game rooms for the specified chapter and objective are stored. Note, players are not aware of these new rooms until they are explored.  Connected rooms should be physically nearby or (very occasionally) refer to rooms that are long journeys taken from the current room.  Long journey rooms will always have only 1 outgoing room which will the player will be taken to automatically after the long journey. The isLongJourney flag should only be true if the room actually refers to a long journey. otherwise it should be false. Each room should have on average 4 connected rooms, but some may have 1 or 2 or 3 or 5, or 6. New room JSON5 objects must include roomName, roomDescription, isLongJourney, and outgoingConnectedRooms. You cannot leave out any of these properties. Again, each room in the array must be in this format:
+        Note, here I use "..." to indicate there may be multiple JSON5 (no quotes around variables) objects in an array. You may not include "..." in your response.  You must completely fill in the arrays.  Where all of the adventure game rooms for the specified chapter and objective are stored. Note, players are not aware of these new rooms until they are explored.  Connected rooms should be physically nearby or (very occasionally) refer to rooms that are long journeys taken from the current room.  Long journey rooms will always have only 1 outgoing room which the player will be taken to automatically after the long journey. The isLongJourney flag should only be true if the room actually refers to a long journey, otherwise the isLongJourney flag should be false. Each room should have on average 4 connected rooms, but some may have 1 or 2 or 3 or 5, or 6. New room JSON5 objects must include roomName, roomDescription, isLongJourney, and outgoingConnectedRooms. You cannot leave out any of these properties. Again, each room in the array must be in this format:
         
         { 
             roomName: <room_name_string>,
@@ -137,9 +140,11 @@ for (let i=1; i<=N; i++)
         //objectiveRoomDetailsJson = {
         //}
 
+        // kludge
         if (objectiveRoomDetailsJson == undefined || objectiveRoomDetailsJson == null || !objectiveRoomDetailsJson.newRooms || !isIterable(objectiveRoomDetailsJson.newRooms) || objectiveRoomDetailsJson.newRooms.length == 0)
             objectiveRoomDetailsJson = await repeatCommand();
 
+        
         objective.objectiveDetails = objectiveRoomDetailsJson
 
 
@@ -165,8 +170,10 @@ for (let i=1; i<=N; i++)
         Note here I use "..." to indicate there may be multiple JSON5 (no quotes around variables) objects in an array. You may not include "..." in your response.  You must completely fill in the array.  Puzzles is an array of JSON5 (no quotes around variables) objects containing all of the puzzles for this objective. The <puzzle_name_string> is the puzzle name.  The <detailed_puzzle_description_string> is a detailed description of the puzzle and the objectives that must be accomplished to solve the puzzle.  Puzzles must be solved in the order they are listed here. Puzzle JSON5 objects must contain puzzleName and puzzleDescription. You cannot leave out any of these properties.  You must include *all* of the puzzles necessary to complete the objective. 
         */
 
-        if (objectiveRoomDetailsJson == null || !objectivePuzzleDetailsJson.puzzles || !isIterable(objectivePuzzleDetailsJson.puzzles) || objectivePuzzleDetailsJson.puzzles.length == 0)
+        // kludge
+        if (objectivePuzzleDetailsJson == null || !objectivePuzzleDetailsJson.puzzles || !isIterable(objectivePuzzleDetailsJson.puzzles) || objectivePuzzleDetailsJson.puzzles.length == 0)
             objectivePuzzleDetailsJson = await repeatCommand();
+
 
         objective.objectiveDetails.puzzles = objectivePuzzleDetailsJson.puzzles
 
@@ -223,8 +230,10 @@ for (let i=1; i<=N; i++)
             Here I gave an example of one item but there may be multiple items in an array so I put "..." to signify that.  You may not include "..." in your response.  You must completely fill in the arrays.   The <item_name_string> is the name of the item that can be found in the room, <item_description_string> is a description of the item. The command list contains a list of JSON5 (no quotes around variables) objects each with a command defined by <command_description_string> containing the actions the player has to perform with the item to make progress in the game with it.  If an item can be picked up and put in your inventory you must create a command JSON5 (no quotes around variables) object for that and add it to the commandList.  Every action must be a separate command.  Do not combine separate actions into one command.  The commands must correspond to the objective.  The prerequisites array is a list of prerequisites required to perform a command.  For example, if a specific puzzle needs to be completed first to perform the command, then it must be listed as a prerequisite or if another item is needed to perform the action it must be listed as a prerequisite.  Make sure you list prerequisites in the order they must be accomplished in the game.  Items JSON5 objects must contain name, description, and commandList. You cannot leave out any of these properties.  The commandList JSON5 objects (if they exist), must contain command, prerequisites, gameWorldStateChange, and pointsGains.   You cannot leave out any of these properties.   You must include *all* of the items necessary that start out in this room.  You may also include some unnecessary items to make the game more challenging.
             */
             
+            // kludge
             if (roomItemsJson == null || !roomItemsJson.items || !isIterable(roomItemsJson.items) || roomItemsJson.items.length == 0)
                 roomItemsJson = await repeatCommand();
+
 
             room.items = roomItemsJson.items
 
@@ -284,9 +293,10 @@ for (let i=1; i<=N; i++)
             Here I gave an example of one character but there may be multiple characters in an array so I put "..." to signify that.  You may not include "..." in your response.  You must completely fill in the arrays.   The <character_name_string> is the name of the character that can be found in the room, <character_description_string> is a description of the character. The characterTalkingTopics contains all of the talking topics the player has to talk about with the charater to make progress in the game.  Every talking topic the character may have for this specific chapter, objective and when the character is in this room must be included in characterTalkingTopics.  Do not combine separate talking topics into one topic.  The characterTalkingTopics must correspond to the objective.  The prerequisites array is a list of prerequisites required to talk about a topic with the character.  The characterSays string is a what the actually character response is talks about topic.  For example, if a specific puzzle needs to be completed first, then it must be listed as a prerequisite.  Make sure you list prerequisites in the order they must be accomplished in the game.  Each character must be defined by a JSON5 object and must contain name, description, conditions, and characterTalkingTopics. You cannot leave out any of these properties.  The characterTalkingTopics JSON5 objects (if they exist), must contain topic, prerequisites, gameWorldStateChange, and pointsGains.   You cannot leave out any of these properties.   You must include *all* of the characters that appear this room.  You may also, very rarely, include some unnecessary characters to make the game more challenging.
             */
 
-
+            // kludge
             if (roomCharactersJson == null || !roomCharactersJson.characters || !isIterable(roomCharactersJson.characters) || roomCharactersJson.characters.length==0)
                 roomCharactersJson = await repeatCommand();
+
 
             room.characters = roomCharactersJson.characters
 

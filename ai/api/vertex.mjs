@@ -139,7 +139,8 @@ export const chat = async (textInput, {
   chatConsole = defaultConsole,
   sessionId = 0,
   isInitialization=false,
-  secondAttempt=false
+  secondAttempt=false,
+  isStreaming = true,
 } = {}) => {
   try {
     if (!setup.settings['vertex-ai-project']) {
@@ -148,25 +149,37 @@ export const chat = async (textInput, {
     }
     let history = aiChatsMap[sessionId].historyInternal;
     let freezeHistory = JSON.stringify(history);
-    let isStreaming = false;
+
     history = await clean(sessionId);
     const userMessage = [{
       text: textInput
     }];
-    const streamResult = await aiChatsMap[sessionId].sendMessageStream(userMessage);
+    let streamResult;
+    try {
+      streamResult = await aiChatsMap[sessionId].sendMessageStream(userMessage);
+    } catch (err)
+    {
+      //await sleep(10000)
+      await init({sessionId})
+      // Restart connection
+      streamResult = await aiChatsMap[sessionId].sendMessageStream(userMessage)
+    }
     let finalOutput = '';
     await chatStdout.write("\n");
-    for await (const item of streamResult.stream) {
-      try {
-        const len = item.candidates[0].content.parts.length;
-        for (let i = 0; i < len; i++) {
-          const textStream = item.candidates[0].content.parts[i].text;
-          finalOutput += textStream;
-          await chatStdout.write(textStream);
+    if (isStreaming)
+    {
+      for await (const item of streamResult.stream) {
+        try {
+          const len = item.candidates[0].content.parts.length;
+          for (let i = 0; i < len; i++) {
+            const textStream = item.candidates[0].content.parts[i].text;
+            finalOutput += textStream;
+            await chatStdout.write(textStream);
+          }
+        } catch (err) {
+          // do nothing
+          isStreaming = false;
         }
-        isStreaming = true;
-      } catch (err) {
-        // do nothing
       }
     }
     if (!isStreaming) {
@@ -258,6 +271,7 @@ export async function init({
   newDefaultChatInstructions,
   sessionId = 0,
   isPersistent = true,
+  isClearingMemory = true,
 } = {}) {
   await initModel(sessionId);
   try {
@@ -278,8 +292,10 @@ export async function init({
     }
     await chatConsole.log(`${action} chat with AI...`)
     let history = null;
+    
     await clearMemory(defaultConsole, sessionId);
-    if (inputHistoryFilePath || verifyCurrentChatHistoryExists(sessionId)) {
+    
+    if (!isClearingMemory && (inputHistoryFilePath || verifyCurrentChatHistoryExists(sessionId))) {
       const historyJSON = await fs.readFile(inputHistoryFilePath || currentChatHistoryFilePath, 'utf-8');
       history = JSON.parse(historyJSON);
       aiChatsMap[sessionId].historyInternal = history;
@@ -325,3 +341,5 @@ export async function init({
     await defaultConsole.error(err);
   }
 }
+
+export const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))

@@ -143,8 +143,11 @@ async function evalCommand(commandIn, stopCommandIn, varTypeIn, repeatQuery=fals
     }
     else
     {
-        sleep(5000);
-        command = lastCommand + "  Please double check your your JSON5.  Your last response contained malformed JSON5.";
+        await sleep(5000);
+
+        
+        // contains kludge
+        command = lastCommand + "  Please double check your JSON5.  Your last response contained malformed JSON5.";
         stopCommand = lastStopCommand;
         varType = lastVarType;
     }
@@ -156,14 +159,15 @@ async function evalCommand(commandIn, stopCommandIn, varTypeIn, repeatQuery=fals
     else 
     {   
         try {
-            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true });
+            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true, aiChatSettings: {isStreaming: false} });
             if (varType!='null' && output!=null && output != undefined)
             {
                 output = await filterOutput(output, {typeOfVar: varType});
             }
+            /// kludge
             if ((output==undefined || output==null) && varType!='null')
             {
-                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON5 out.  You must produce valid JSON5.\``), { isThrowing: true });
+                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON5 out.  You must produce valid JSON5.  Do not produce the same response as last time!!!\``), { isThrowing: true, aiChatSettings: {isStreaming: false}  });
                 if (varType && output)
                 {
                     output = await filterOutput(output || null, {typeOfVar: varType});
