@@ -26,12 +26,17 @@ function extractJson5Objects(text) {
                   const jsonObj = json5.parse(text.substring(startIndex, i + 1));
                   jsonObjects.push(jsonObj);
               } catch (e) {
-                  // Ignore if the string is not a valid JSON5 object
+                  jsonObjects = []]// Ignore if the string is not a valid JSON5 object
               }
           }
       }
   }
 
+  if (jsonObjects.length === 0)
+  {
+    return null;
+  }
+  
   // Return based on the number of valid JSON5 objects
   return jsonObjects.length === 1 ? jsonObjects[0] : jsonObjects;
 }

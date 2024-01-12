@@ -7,6 +7,11 @@ import crypto from 'crypto';
 import json5 from 'json5'
 
 
+
+let lastCommand = null;
+let lastStopCommand = null;
+let lastVarType = null;
+
 export const command = {
     id: "multi-command",
     name: "multi-command",
@@ -116,9 +121,33 @@ export async function process({input, joinedInput}) {
     }
 }
 
-async function evalCommand(command, stopCommand, varType)
+
+async function repeatCommand()
+{
+    return await evalCommand(null, null, null, true);
+}
+
+async function evalCommand(commandIn, stopCommandIn, varTypeIn, repeatQuery=false)
 {
     let output = null;
+
+    let command = commandIn;
+    let stopCommand = stopCommandIn;
+    let varType = varTypeIn;
+
+    if (!repeatQuery)
+    {
+        lastCommand = command;
+        lastStopCommand = stopCommand;
+        lastVarType = varType;
+    }
+    else
+    {
+        sleep(5000);
+        command = lastCommand + "  Please double check your your JSON5.  Your last response contained malformed JSON5.";
+        stopCommand = lastStopCommand;
+        varType = lastVarType;
+    }
 
     if (command == stopCommand)
     {
@@ -134,8 +163,6 @@ async function evalCommand(command, stopCommand, varType)
             }
             if ((output==undefined || output==null) && varType!='null')
             {
-                // Maybe we're overloaded? Wait 5 seconds.
-                await sleep(5000)
                 output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON5 out.  You must produce valid JSON5.\``), { isThrowing: true });
                 if (varType && output)
                 {
@@ -144,6 +171,7 @@ async function evalCommand(command, stopCommand, varType)
             }
         } catch (err)
         {
+            output = null;
             error(err + '\nAdditional information:\n\nFailed on sub-command:\n' + command);
         }
     }
