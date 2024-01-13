@@ -4,10 +4,12 @@ import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
 import crypto from 'crypto';
-import json5 from 'json5'
+import json5 from 'json5'; // Are we using this?
 
 
-
+const ai = {
+    chatHistory: []
+}
 let lastCommand = null;
 let lastStopCommand = null;
 let lastVarType = null;
@@ -74,7 +76,7 @@ export async function process({input, joinedInput}) {
 
         let codeToEvalSplit = codeToEval.split(new RegExp(lines[1]));
         let codeToEvalFinal = codeToEvalSplit[0];
-        let commandBlockClosed = true;
+        let commandBlockClosed = true; // are we using this?
         
         let commandAndCode = null
         for (let i=1; i < codeToEvalSplit.length; i++)
@@ -159,7 +161,8 @@ async function evalCommand(commandIn, stopCommandIn, varTypeIn, repeatQuery=fals
     else 
     {   
         try {
-            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true, aiChatSettings: {isStreaming: false} });
+            const { chatHistory } = ai;
+            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory }  });
             if (varType!='null' && output!=null && output != undefined)
             {
                 output = await filterOutput(output, {typeOfVar: varType});
