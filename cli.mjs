@@ -107,6 +107,7 @@ async function init(initialInput) {
     const commandModeBefore = properties.commandMode;
     try {
       rl.pause();
+      await pushCliHistory(rl, properties.commandMode);
       await executeCommand(input);
     } catch (err) {
       error(err);

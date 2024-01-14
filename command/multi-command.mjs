@@ -1,4 +1,4 @@
-import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput } from 'fusion-hub/functions';
+import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput, isObject, isString } from 'fusion-hub/functions';
 import { error, log, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
@@ -13,6 +13,7 @@ const ai = {
 let lastCommand = null;
 let lastStopCommand = null;
 let lastVarType = null;
+let lastOutput = null;
 
 export const command = {
     id: "multi-command",
@@ -103,9 +104,9 @@ export async function process({input, joinedInput}) {
                     }
                 }
                 const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { stopCommand , varType: `${varType}`, cliProperties}));
-                const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand });
-                codeToEvalFinal += `${prependAssignment}${codeBody};`; 
+                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
+                const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand });
+                codeToEvalFinal += `${prependAssignment}${codeBody};\n`; 
                 codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1] + '\n': '';
             }
             else if (commandAndCode.length > 2)
@@ -142,13 +143,13 @@ async function evalCommand(commandIn, settings)
     settings.varTypeIn ||= null;
     settings.repeatQuery ||= false;
 
-    const { stopCommandIn, varTypeIn, repeatQuery } = settings;
+    const { repeatQuery } = settings;
   
     let output = null;
 
     let command = commandIn;
-    let stopCommand = stopCommandIn;
-    let varType = varTypeIn;
+    let stopCommand = settings.stopCommandIn;
+    let varType = settings.varTypeIn;
 
     if (!repeatQuery)
     {
@@ -162,7 +163,7 @@ async function evalCommand(commandIn, settings)
 
         
         // contains kludge
-        command = lastCommand + "  Please double check your JSON5.  Your last response contained malformed JSON5.";
+        command = lastCommand + "  Please double check your JSON.  Your last response contained malformed JSON.";
         stopCommand = lastStopCommand;
         varType = lastVarType;
     }
@@ -175,18 +176,20 @@ async function evalCommand(commandIn, settings)
     {   
         try {
             const { chatHistory } = ai;
-            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory }  });
-            if (varType!='null' && output!=null && output != undefined)
+            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput)) ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory }  });
+            if (varType!='null' && isString(output))
             {
                 output = await filterOutput(output, {typeOfVar: varType});
             }
+            if (!repeatQuery)
+                lastOutput=output;
             /// kludge
-            if ((output==undefined || output==null) && varType!='null')
+            const isErrorMessage = isString(output);
+            if ((!isObject(output) || isErrorMessage) && varType=='JSON')
             {
-                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON5 out.  You must produce valid JSON5.  Do not produce the same response as last time!!!\``), { isThrowing: true, aiChatSettings: {isStreaming: false}  });
-                if (varType && output)
+                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON out.  You must produce valid JSON.  Do not produce the same response as last time!!! ${isErrorMessage ? `\n\nUse the output from the JSON parser to help resolve the issue: ${output}` : ''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false}  });if (varType && output)
                 {
-                    output = await filterOutput(output || null, {typeOfVar: varType});
+                    output = await filterOutput(output, {typeOfVar: varType});
                 }
             }
         } catch (err)
