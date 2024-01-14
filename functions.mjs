@@ -27,65 +27,47 @@ export function extractLambdaFunctionBody(func, substitutions) {
   return body;
 }
 
-export async function evalCommand(command, settings) {
-  const { executeCommand } = await import("fusion-hub/cli");
-  let output = null;
-  const { stopCommand, varType, cliProperties } = settings;
-
-  if (command == stopCommand) {
-    cliProperties.commandMode = null;
-  } else {
-    try {
-      output = await executeCommand(
-        eval(`\`${command.replace(/`/g, "\\`")}\``),
-        { isThrowing: true }
-      );
-      if (varType && output) {
-        output = await filterOutput(output || null, { typeOfVar: varType });
-      }
-    } catch (err) {
-      error(
-        err + "\nAdditional information:\n\nFailed on sub-command:\n" + command
-      );
-    }
-  }
-
-  return output;
-}
-
 export function extractJson5Objects(text) {
   let braceCount = 0;
   let startIndex = 0;
-  const jsonObjects = [];
+  let jsonObjects = [];
 
   for (let i = 0; i < text.length; i++) {
-    if (text[i] === "{") {
-      braceCount += 1;
-      if (braceCount === 1) {
-        startIndex = i; // Mark the start of a JSON5 object
-      }
-    } else if (text[i] === "}") {
-      braceCount -= 1;
-      if (braceCount === 0) {
-        // End of a JSON5 object
-        try {
-          const jsonObj = json5.parse(text.substring(startIndex, i + 1));
-          jsonObjects.push(jsonObj);
-        } catch (e) {
-          // Ignore if the string is not a valid JSON5 object
-        }
+      if (text[i] === '{') {
+          braceCount += 1;
+          if (braceCount === 1) {
+              startIndex = i; // Mark the start of a JSON5 object
+          }
+      } else if (text[i] === '}') {
+          braceCount -= 1;
+          if (braceCount === 0) {
+              // End of a JSON5 object
+              try {
+                  const jsonObj = json5.parse(text.substring(startIndex, i + 1));
+                  jsonObjects.push(jsonObj);
+              } catch (e) {
+                  jsonObjects = [] // Ignore if the string is not a valid JSON5 object
+              }
+          }
       }
     }
   }
 
+  if (jsonObjects.length === 0)
+  {
+    return null;
+  }
+  
   // Return based on the number of valid JSON5 objects
   return jsonObjects.length === 1 ? jsonObjects[0] : jsonObjects;
 }
 
-export const filterOutput = (output, filterSettings = null) => {
-  if (output == null) return output;
+export const filterOutput = (output, filterSettings=null) => {
+  if (output == null)
+    return output
 
-  if (filterSettings.typeOfVar == "JSON") {
+  if (filterSettings.typeOfVar == 'JSON')
+  {
     return extractJson5Objects(output);
   } else if (filterSettings.typeOfVar == "text") {
     return output;
@@ -264,5 +246,5 @@ export function getTimestamp() {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
 }
 
-export const addPeriodToBasename = (filePath) =>
-  path.join(path.dirname(filePath), `.${path.basename(filePath)}`);
+export const addPeriodToBasename = (filePath) => path.join(path.dirname(filePath), `.${path.basename(filePath)}`);
+export const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))

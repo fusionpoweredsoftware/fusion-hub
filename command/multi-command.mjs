@@ -1,9 +1,18 @@
-import { expandFilePath, evalCommand, extractLambdaFunctionBody } from 'fusion-hub/functions';
+import { expandFilePath, extractLambdaFunctionBody } from 'fusion-hub/functions';
 import { error, log, properties as cliProperties } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
 import crypto from 'crypto';
+import json5 from 'json5'; // Are we using this?
+
+
+const ai = {
+    chatHistory: []
+}
+let lastCommand = null;
+let lastStopCommand = null;
+let lastVarType = null;
 
 export const command = {
     id: "multi-command",
@@ -67,7 +76,7 @@ export async function process({input, joinedInput}) {
 
         let codeToEvalSplit = codeToEval.split(new RegExp(lines[1]));
         let codeToEvalFinal = codeToEvalSplit[0];
-        let commandBlockClosed = true;
+        let commandBlockClosed = true; // are we using this?
         
         let commandAndCode = null
         for (let i=1; i < codeToEvalSplit.length; i++)
@@ -110,6 +119,80 @@ export async function process({input, joinedInput}) {
             error('Open command without close.');
         }
 
+        log("(async () => {" + codeToEvalFinal + "})()")
         eval("(async () => {" + codeToEvalFinal + "})()" )
     }
+}
+
+async function repeatCommand()
+{
+    return await evalCommand(null, null, null, true);
+}
+
+async function evalCommand(commandIn, settings)
+{
+    if (typeof settings !== 'object' || settings === null) {
+      error ("The evalCommand requires settings to be an object.");
+      return;
+    }
+  
+    settings ||= {};
+  
+    settings.stopCommandIn = undefined;
+    settings.varTypeIn = undefined;
+    settings.repeatQuery = false;
+  
+    let output = null;
+
+    let command = commandIn;
+    let stopCommand = stopCommandIn;
+    let varType = varTypeIn;
+
+    if (!repeatQuery)
+    {
+        lastCommand = command;
+        lastStopCommand = stopCommand;
+        lastVarType = varType;
+    }
+    else
+    {
+        await sleep(5000);
+
+        
+        // contains kludge
+        command = lastCommand + "  Please double check your JSON5.  Your last response contained malformed JSON5.";
+        stopCommand = lastStopCommand;
+        varType = lastVarType;
+    }
+
+    if (command == stopCommand)
+    {
+        cliProperties.commandMode = null;
+    }
+    else 
+    {   
+        try {
+            const { chatHistory } = ai;
+            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory }  });
+            if (varType!='null' && output!=null && output != undefined)
+            {
+                output = await filterOutput(output, {typeOfVar: varType});
+            }
+            /// kludge
+            if ((output==undefined || output==null) && varType!='null')
+            {
+                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON5 out.  You must produce valid JSON5.  Do not produce the same response as last time!!!\``), { isThrowing: true, aiChatSettings: {isStreaming: false}  });
+                if (varType && output)
+                {
+                    output = await filterOutput(output || null, {typeOfVar: varType});
+                }
+            }
+        } catch (err)
+        {
+            output = null;
+            error(err + '\nAdditional information:\n\nFailed on sub-command:\n' + command);
+        }
+    }
+
+    return output;
 }
