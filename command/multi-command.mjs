@@ -1,5 +1,5 @@
-import { expandFilePath, filterOutput, sleep } from 'fusion-hub/functions';
-import { executeCommand, error, log, properties as cliProperties } from 'fusion-hub/cli';
+import { expandFilePath, extractLambdaFunctionBody } from 'fusion-hub/functions';
+import { error, log, properties as cliProperties } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
@@ -85,15 +85,15 @@ export async function process({input, joinedInput}) {
 
             if (commandAndCode.length >= 1 && commandAndCode.length <= 2)
             {
-                let prependAssignement = '';
+                let prependAssignment = '';
                 let varType = 'null';
                 let matches = commandAndCode[0].match(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m);
                 if (matches != null)
                 {
-                    prependAssignement = matches.groups.varName ? ('let ' + matches.groups.varName + '=') : null;
+                    prependAssignment = matches.groups.varName ? ('let ' + matches.groups.varName + '=') : null;
                     varType = matches.groups.varType || null;
                 
-                    if (prependAssignement && varType && (varType == 'JSON' || varType == 'text'))
+                    if (prependAssignment && varType && (varType == 'JSON' || varType == 'text'))
                     {
                         commandAndCode[0] = commandAndCode[0].replace(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m, '')
                     }
@@ -102,10 +102,11 @@ export async function process({input, joinedInput}) {
                         error('Invalid command assignment: (' + matches.groups.varName + ', ' + varType + ')');
                     }
                 }
-                let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                codeToEvalFinal += prependAssignement + 'await evalCommand(`' + escapedCommand + '`, stopCommand, `' + varType + '`);\n' 
+                const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
+                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { stopCommand , varType: `${varType}`, cliProperties}));
+                const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand });
+                codeToEvalFinal += `${prependAssignment}${codeBody};`; 
                 codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1] + '\n': '';
-
             }
             else if (commandAndCode.length > 2)
             {
@@ -123,14 +124,24 @@ export async function process({input, joinedInput}) {
     }
 }
 
-
 async function repeatCommand()
 {
     return await evalCommand(null, null, null, true);
 }
 
-async function evalCommand(commandIn, stopCommandIn, varTypeIn, repeatQuery=false)
+async function evalCommand(commandIn, settings)
 {
+    if (typeof settings !== 'object' || settings === null) {
+      error ("The evalCommand requires settings to be an object.");
+      return;
+    }
+  
+    settings ||= {};
+  
+    settings.stopCommandIn = undefined;
+    settings.varTypeIn = undefined;
+    settings.repeatQuery = false;
+  
     let output = null;
 
     let command = commandIn;
@@ -185,4 +196,3 @@ async function evalCommand(commandIn, stopCommandIn, varTypeIn, repeatQuery=fals
 
     return output;
 }
-
