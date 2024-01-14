@@ -45,7 +45,7 @@ let E=5;
 
 
 /*(myStory, text)
-We are designing a 1990s style text adventure game (with no graphics right now). Give a game story for a ${script.json.theme} themed text adventure adventure game with a background story followed by ${N} chapters. Write the background story followed by chapter 1 and go to chapter ${N}. The background story section should be titled "Background Story" and after that the first each chapter i should be titled like "Chapter i: <The name of chapter i>".  Each chapter must have an ultimate goal that is further composed of a series of at most ${E} objectives.  Each objective must access a series of rooms (possibly rooms encountered before, new rooms added by solving the previous objective puzzles, or new rooms added by exploring).  The objectives should flow nicely from one chapter to the next. The each objective should be a series of adventure game puzzles.  An adventure game puzzle is some problem that the player encounters that must be solved by some combination of either finding items (or combining items to make new items), using items to accomplish game objectives, talking to characters in the game, or exploring by going to new rooms. (Some items can be picked up and put in a player's inventory.  Just like in the 1990s style adventure games, the players can have an unrealistically large inventory they can carry around with them.) Adventure game puzzles may only depend on the prior completion of puzzles in the current objective (you can assume all of the puzzles in the previous objectives have been solved).  Puzzles must be solved in a specific order. Rooms, in and of themselves must either physical locations (like in 1990s style adventure games) or cut scenes, such as a long journey.  Rooms must be connected in some way to other rooms.  For now, the chapters should be relatively short (1 paragraph for each objective) but you will expand each chapter later in the following queries (not now).  The game play will actually start after the background story, so just keep that in mind when you write everything out. In the final chapter, chapter ${N}, the game should culminate in some kind of grand accomplishment achieved such that the player feels like they have won the game.  Write the background story followed by chapter 1 and go to chapter ${N} now.
+We are designing a 1990s style text adventure game (with no graphics right now). Give a game story for a ${script.json.theme} themed text adventure adventure game with a background story followed by ${N} chapters. Create as much original content as possible and avoid using trademarks unless elements are directly referenced in the theme. Write the background story followed by chapter 1 and go to chapter ${N}. The background story section should be titled "Background Story" and after that the first each chapter i should be titled like "Chapter i: <The name of chapter i>".  Each chapter must have an ultimate goal that is further composed of a series of at most ${E} objectives.  Each objective must access a series of rooms (possibly rooms encountered before, new rooms added by solving the previous objective puzzles, or new rooms added by exploring).  The objectives should flow nicely from one chapter to the next. The each objective should be a series of adventure game puzzles.  An adventure game puzzle is some problem that the player encounters that must be solved by some combination of either finding items (or combining items to make new items), using items to accomplish game objectives, talking to characters in the game, or exploring by going to new rooms. (Some items can be picked up and put in a player's inventory.  Just like in the 1990s style adventure games, the players can have an unrealistically large inventory they can carry around with them.) Adventure game puzzles may only depend on the prior completion of puzzles in the current objective (you can assume all of the puzzles in the previous objectives have been solved).  Puzzles must be solved in a specific order. Rooms, in and of themselves must either physical locations (like in 1990s style adventure games) or cut scenes, such as a long journey.  Rooms must be connected in some way to other rooms.  For now, the chapters should be relatively short (1 paragraph for each objective) but you will expand each chapter later in the following queries (not now).  The game play will actually start after the background story, so just keep that in mind when you write everything out. In the final chapter, chapter ${N}, the game should culminate in some kind of grand accomplishment achieved such that the player feels like they have won the game.  Write the background story followed by chapter 1 and go to chapter ${N} now. ${script.json.stipulations||''} 
 /*(myGameJSON, JSON)
 Put the story design (for the ${script.json.theme} themed story you just came up with) into JSON (standard JSON) object of the form:
 
@@ -60,7 +60,9 @@ Put the story design (for the ${script.json.theme} themed story you just came up
     ]
 }
 
-Make sure you do *ALL* of the chapters.  Note, only in this case I put a null to skip the 0th array entry.  Do not expand the chapter yet.  Just put it in this JSON.  The chapterText string must contain *all* of the text you generated for the chapter from your previous response copied verbatim for each chapter.  The point of this is simply to put your previous response into JSON (standard JSON) form.
+Make sure you do *ALL* of the chapters.  Note, only in this case I put a null to skip the 0th array entry.  Do not expand the chapter yet.  Just put it in this JSON.  The chapterText string must contain *all* of the text you generated for the chapter from your previous response copied verbatim for each chapter.  The point of this is simply to put your previous response into JSON (standard JSON) form. As explained before, create original content and avoid use of trademarks unless they were directly referenced in the theme.
+
+${script.json.stipulations||''} 
 */
 
 // kludge
@@ -143,14 +145,19 @@ for (let i=1; i<=N; i++)
         Also, you must include *all* of the new rooms necessary to complete the objective.
         */
 
-        //objectiveRoomDetailsJson = {
-        //}
+        objective.objectiveDetails||={};
 
         // kludge
-        if (!isObject(objectiveRoomDetailsJson) || !objectiveRoomDetailsJson.newRooms || !isIterable(objectiveRoomDetailsJson.newRooms) || objectiveRoomDetailsJson.newRooms.length == 0)
+        attempt = 0;
+        attemptMax=5;
+        while ((!isObject(objectiveRoomDetailsJson) || !objectiveRoomDetailsJson.newRooms || !isIterable(objectiveRoomDetailsJson.newRooms) || objectiveRoomDetailsJson.newRooms.length == 0) && attempt++<attemptMax)
             objectiveRoomDetailsJson = await repeatCommand();
 
-        objective.objectiveDetails = objectiveRoomDetailsJson
+        if (objectiveRoomDetailsJson.newRooms && objectiveRoomDetailsJson.newRooms.length>0)
+            objective.objectiveDetails.newRooms = objectiveRoomDetailsJson.newRooms
+        else    
+            objective.objectiveDetails.newRooms = [];
+
 
         /*(objectivePuzzleDetailsJson, JSON)
         For chapter ${i}, ${myGameJSON.chapters[i].chapterTitle}, and objective ${objective.objectiveDescription}, create a JSON (standard JSON) object containing an array, called puzzles, with details of each new room unlocked by entering the specified chapter and objective in the form:
@@ -176,12 +183,10 @@ for (let i=1; i<=N; i++)
 
         // kludge
         attempt = 0;
-        attemptMax=10;
+        attemptMax=5;
 
         while ((!isObject(objectivePuzzleDetailsJson) || !objectivePuzzleDetailsJson.puzzles || !isIterable(objectivePuzzleDetailsJson.puzzles) || objectivePuzzleDetailsJson.puzzles.length == 0) && attempt++<attemptMax)
             objectivePuzzleDetailsJson = await repeatCommand();
-
-        objective.objectiveDetails||={};
         if (objectivePuzzleDetailsJson.puzzles && objectivePuzzleDetailsJson.puzzles.length>0)
             objective.objectiveDetails.puzzles = objectivePuzzleDetailsJson.puzzles
         else    
