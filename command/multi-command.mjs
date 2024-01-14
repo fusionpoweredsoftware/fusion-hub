@@ -125,12 +125,12 @@ export async function process({input, joinedInput}) {
     }
 }
 
-async function repeatCommand()
+export async function repeatCommand(additionalInfo)
 {
-    return await evalCommand(null, {repeatQuery: true});
+    return await evalCommand(null, {repeatQuery: true, additionalInfo});
 }
 
-async function evalCommand(commandIn, settings)
+export async function evalCommand(commandIn, settings)
 {
     if (typeof settings !== 'object' || settings === null) {
       error ("The evalCommand requires settings to be an object.");
@@ -144,12 +144,14 @@ async function evalCommand(commandIn, settings)
     settings.repeatQuery ||= false;
 
     const { repeatQuery } = settings;
-  
+
     let output = null;
 
     let command = commandIn;
-    let stopCommand = settings.stopCommandIn;
-    let varType = settings.varTypeIn;
+    let { stopCommandIn: stopCommand, varTypeIn: varType, additionalInfo } = settings;
+
+    if (additionalInfo)
+        additionalInfo+=" ";
 
     if (!repeatQuery)
     {
@@ -176,7 +178,8 @@ async function evalCommand(commandIn, settings)
     {   
         try {
             const { chatHistory } = ai;
-            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput)) ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory }  });
+            
+            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput)) ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory }  });
             if (varType!='null' && isString(output))
             {
                 output = await filterOutput(output, {typeOfVar: varType});

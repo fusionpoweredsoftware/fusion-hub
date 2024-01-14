@@ -44,10 +44,16 @@ let N=3;
 let E=5;
 
 
+/*(myStoryRoughDraft, text)
+We are designing a 1990s style text adventure game (with no graphics right now). Give a game story for a ${script.json.theme} themed text adventure adventure game with a background story followed by ${N} chapters. Create as much original content as possible and avoid using trademarks unless elements are directly referenced in the theme. Write the background story followed by chapter 1 and go to chapter ${N}. The background story section should be titled "Background Story" and after that the first each chapter i should be titled like "Chapter i: <The name of chapter i>".  Each chapter must have an ultimate goal that is further composed of a series of at most ${E} objectives.  Each objective must access a series of rooms (possibly rooms encountered before, new rooms added by solving the previous objective puzzles, or new rooms added by exploring).  The objectives should flow nicely from one chapter to the next. The each objective should be a series of adventure game puzzles.  An adventure game puzzle is some problem that the player encounters that must be solved by some combination of either finding items (or combining items to make new items), using items to accomplish game objectives, talking to characters in the game, or exploring by going to new rooms. (Some items can be picked up and put in a player's inventory.  Just like in the 1990s style adventure games, the players can have an unrealistically large inventory they can carry around with them.) Adventure game puzzles may only depend on the prior completion of puzzles in the current objective (you can assume all of the puzzles in the previous objectives have been solved).  Puzzles must be solved in a specific order. Rooms, in and of themselves must either physical locations (like in 1990s style adventure games) or cut scenes, such as a long journey.  Rooms must be connected in some way to other rooms.  For now, the chapters should be relatively short (1 paragraph for each objective) but you will expand each chapter later in the following queries (not now).  The game play will actually start after the background story, so just keep that in mind when you write everything out. In the final chapter, chapter ${N}, the game should culminate in some kind of grand accomplishment achieved such that the player feels like they have won the game.  Write the background story followed by chapter 1 and go to chapter ${N} now. ${script.json.stipulations||''} 
 /*(myStory, text)
+That's a good start! Let's try it again though. This time, double-check for any potential grammar mistakes and clean up that story description just a little bit. Also, make sure you include ALL of the elements of the theme, even if you have to re-write the story: ${script.json.theme}. Other important things to consider: Don't forget what this is about and check that ALL your chapters are there. ${script.json.stipulations||''}
+
+Also, make sure to follow the same rules as before:
+
 We are designing a 1990s style text adventure game (with no graphics right now). Give a game story for a ${script.json.theme} themed text adventure adventure game with a background story followed by ${N} chapters. Create as much original content as possible and avoid using trademarks unless elements are directly referenced in the theme. Write the background story followed by chapter 1 and go to chapter ${N}. The background story section should be titled "Background Story" and after that the first each chapter i should be titled like "Chapter i: <The name of chapter i>".  Each chapter must have an ultimate goal that is further composed of a series of at most ${E} objectives.  Each objective must access a series of rooms (possibly rooms encountered before, new rooms added by solving the previous objective puzzles, or new rooms added by exploring).  The objectives should flow nicely from one chapter to the next. The each objective should be a series of adventure game puzzles.  An adventure game puzzle is some problem that the player encounters that must be solved by some combination of either finding items (or combining items to make new items), using items to accomplish game objectives, talking to characters in the game, or exploring by going to new rooms. (Some items can be picked up and put in a player's inventory.  Just like in the 1990s style adventure games, the players can have an unrealistically large inventory they can carry around with them.) Adventure game puzzles may only depend on the prior completion of puzzles in the current objective (you can assume all of the puzzles in the previous objectives have been solved).  Puzzles must be solved in a specific order. Rooms, in and of themselves must either physical locations (like in 1990s style adventure games) or cut scenes, such as a long journey.  Rooms must be connected in some way to other rooms.  For now, the chapters should be relatively short (1 paragraph for each objective) but you will expand each chapter later in the following queries (not now).  The game play will actually start after the background story, so just keep that in mind when you write everything out. In the final chapter, chapter ${N}, the game should culminate in some kind of grand accomplishment achieved such that the player feels like they have won the game.  Write the background story followed by chapter 1 and go to chapter ${N} now. ${script.json.stipulations||''} 
 /*(myGameJSON, JSON)
-Put the story design (for the ${script.json.theme} themed story you just came up with) into JSON (standard JSON) object of the form:
+Good brain-storming session! Now put the story design (for the ${script.json.theme} themed story you just came up with) into JSON (standard JSON) object of the form:
 
 {
     title: <title_string>, 
@@ -65,12 +71,18 @@ Make sure you do *ALL* of the chapters.  Note, only in this case I put a null to
 ${script.json.stipulations||''} 
 */
 
+let chaptersRecap = '';
+for (let i = 1; i < myGameJSON.chapters.length; i++) {
+    chaptersRecap += ` - ${i}. ${myGameJSON.chapters[i].chapterText}`;
+}
+let recap = `${myGameJSON.gameBackgroundStory} ${chaptersRecap}${script.json.stipulations ? (' - IMPORTANT NOTE FROM DESIGNER: '+script.json.stipulations):''}`;
+
 // kludge
 attempt = 0;
 attemptMax = 5;
 
-while ((!isObject(myGameJSON) || !myGameJSON.chapters || !isIterable(myGameJSON.chapters) || myGameJSON.chapters.length == 0) && attempt++<attemptMax)
-    myGameJSON = await repeatCommand();
+while ((!isObject(myGameJSON) || !myGameJSON.chapters || !isIterable(myGameJSON.chapters) || myGameJSON.chapters.length != (N+1)) && attempt++<attemptMax)
+    myGameJSON = await repeatCommand(`${(isObject(myGameJSON) && myGameJSON.chapters && myGameJSON.chapters.length != (N+1)) ? ('Make sure you provide exactly '+N+' chapters. No more and no less.') : ''}`);
 if (attempt>attemptMax) {
     error(`Unable to proceed. Max number of attempts to create myGameJSON exceeded. Example of bad output:\n\n${myGameJSON}`)
     return;
@@ -80,6 +92,7 @@ if (attempt>attemptMax) {
 for (let i=1; i<=N; i++)
 {
     /*(chapterJson, JSON)
+    For reference, this is the complete story recap: ${recap}
     Here you will expand out each chapter.  Chapter objective and the objectives of chapter ${i}, entitled ${myGameJSON.chapters[i].chapterTitle}, into a JSON (standard JSON) object of the form:
     
     {
@@ -110,6 +123,7 @@ for (let i=1; i<=N; i++)
     for (var objective of chapterJson.objectives)
     {
         /*(objectiveRoomDetailsJson, JSON)
+        For reference, this is the complete story recap: ${recap}
         For chapter ${i}, ${myGameJSON.chapters[i].chapterTitle}, and objective ${objective.objectiveDescription}, create a JSON (standard JSON) object containing an array, called newRooms, with details of each new room unlocked by entering the specified chapter and objective in the form:
         
         {
@@ -160,6 +174,7 @@ for (let i=1; i<=N; i++)
 
 
         /*(objectivePuzzleDetailsJson, JSON)
+        For reference, this is the complete story recap: ${recap}
         For chapter ${i}, ${myGameJSON.chapters[i].chapterTitle}, and objective ${objective.objectiveDescription}, create a JSON (standard JSON) object containing an array, called puzzles, with details of each new room unlocked by entering the specified chapter and objective in the form:
         
         {
@@ -184,9 +199,9 @@ for (let i=1; i<=N; i++)
         // kludge
         attempt = 0;
         attemptMax=5;
-
         while ((!isObject(objectivePuzzleDetailsJson) || !objectivePuzzleDetailsJson.puzzles || !isIterable(objectivePuzzleDetailsJson.puzzles) || objectivePuzzleDetailsJson.puzzles.length == 0) && attempt++<attemptMax)
             objectivePuzzleDetailsJson = await repeatCommand();
+        
         if (objectivePuzzleDetailsJson.puzzles && objectivePuzzleDetailsJson.puzzles.length>0)
             objective.objectiveDetails.puzzles = objectivePuzzleDetailsJson.puzzles
         else    
@@ -195,6 +210,7 @@ for (let i=1; i<=N; i++)
         for (var room of objective.objectiveDetails.newRooms)
         {
             /*(roomItemsJson, JSON)
+            For reference, this is the complete story recap: ${recap}
             For chapter ${i}, ${myGameJSON.chapters[i].chapterTitle}, and objective  ${objective.objectiveDescription}, and room ${room.roomName} provide an array of all of the items that can originally be found in this room in the form:
             
             {
@@ -243,15 +259,20 @@ for (let i=1; i<=N; i++)
 
             Here I gave an example of one item but there may be multiple items in an array so I put "..." to signify that.  You may not include "..." in your response.  You must completely fill in the arrays.   The <item_name_string> is the name of the item that can be found in the room, <item_description_string> is a description of the item. The command list contains a list of JSON (standard JSON) objects each with a command defined by <command_description_string> containing the actions the player has to perform with the item to make progress in the game with it.  If an item can be picked up and put in your inventory you must create a command JSON (standard JSON) object for that and add it to the commandList.  Every action must be a separate command.  Do not combine separate actions into one command.  The commands must correspond to the objective.  The prerequisites array is a list of prerequisites required to perform a command.  For example, if a specific puzzle needs to be completed first to perform the command, then it must be listed as a prerequisite or if another item is needed to perform the action it must be listed as a prerequisite.  Make sure you list prerequisites in the order they must be accomplished in the game.  Items JSON (standard JSON) objects must contain name, description, and commandList. You cannot leave out any of these properties.  The commandList JSON (standard JSON) objects (if they exist), must contain command, prerequisites, gameWorldStateChange, and pointsGained.   You cannot leave out any of these properties.   You must include *all* of the items necessary that start out in this room.  You may also include some unnecessary items to make the game more challenging.
             */
-            
+
             // kludge
-            if (!isObject(roomItemsJson) || !isIterable(roomItemsJson.items) || roomItemsJson.items.length == 0)
+            attempt = 0;
+            attemptMax=5;
+            while ((!isObject(roomItemsJson) || !roomItemsJson.items || !isIterable(roomItemsJson.items) || roomItemsJson.items.length == 0) && attempt++<attemptMax)
                 roomItemsJson = await repeatCommand();
 
-
-            room.items = roomItemsJson.items
+            if (roomItemsJson.items && roomItemsJson.items>0)
+                room.items = roomItemsJson.items
+            else    
+                room.items = [];
 
             /*(roomCharactersJson, JSON)
+            For reference, this is the complete story recap: ${recap}
             For chapter ${i}, ${myGameJSON.chapters[i].chapterTitle}, and objective  ${objective.objectiveDescription}, and room ${room.roomName} provide an array of unique characters that can be found in this room in the form:
             
             {
@@ -308,11 +329,16 @@ for (let i=1; i<=N; i++)
             */
 
             // kludge
-            if (!isObject(roomCharactersJson) || !isIterable(roomCharactersJson.characters) || roomCharactersJson.characters.length==0)
+            attempt = 0;
+            attemptMax=5;
+            while ((!isObject(roomCharactersJson) || !roomCharactersJson.characters || !isIterable(roomCharactersJson.characters) || roomCharactersJson.characters.length == 0) && attempt++<attemptMax) {
                 roomCharactersJson = await repeatCommand();
+            }
 
-
-            room.characters = roomCharactersJson.characters
+            if (roomCharactersJson.characters && roomCharactersJson.characters>0)
+                room.characters = roomCharactersJson.characters;
+            else    
+                room.characters = [];
 
             await writeOutGameJson(myGameJSON)
         }
