@@ -14,7 +14,8 @@ export const command = {
     isStartable: false
   };
 
-export async function startCommandModule(input, joinedInput=input.join(' ')) {
+export async function startCommandModule(input, joinedInput='', settings) {
+    const { isCommandStartLogged = true } = settings;
     if (joinedInput.length==0) {
         cliErrors.noCommandSuppliedError();
         return;
@@ -64,10 +65,12 @@ export async function startCommandModule(input, joinedInput=input.join(' ')) {
                 const result = await commandModule.start(...commandArguments);
                 if (result) {
                     cli.properties.commandMode = commandModule.command.id;
-                    if (result===true)
-                        cli.output.log(`${capitalizeFirstLetter(commandModule.command.name)} started.`);
-                    else
-                        cli.output.log(`${capitalizeFirstLetter(result)} started.`);
+                    if (isCommandStartLogged) {
+                        if (result===true)
+                            cli.output.log(`${capitalizeFirstLetter(commandModule.command.name)} started.`);
+                        else
+                            cli.output.log(`${capitalizeFirstLetter(result)} started.`);
+                    }
                 }
                 matchFound=true;
                 break;
@@ -77,6 +80,6 @@ export async function startCommandModule(input, joinedInput=input.join(' ')) {
     if (!matchFound)
         cliErrors.commandNotStartableError();
 }
-export async function process({joinedInput, input}) {
-    await startCommandModule(input, joinedInput);
+export async function process({joinedInput, input, settings = {}}) {
+    await startCommandModule(input, joinedInput, settings);
 }

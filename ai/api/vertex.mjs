@@ -151,7 +151,7 @@ export const chat = async (textInput, {
     }
     if (chatHistory && Array.isArray(chatHistory)) {
       aiChatsMap[sessionId].historyInternal.length=0;
-      aiChatsMap[sessionId].historyInternal.push(...chatHistory);
+      aiChatsMap[sessionId].historyInternal=chatHistory;
     }
     chatHistory ||= aiChatsMap[sessionId].historyInternal;
     let freezeHistory = JSON.stringify(chatHistory);
