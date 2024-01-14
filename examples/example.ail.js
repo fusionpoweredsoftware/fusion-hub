@@ -32,8 +32,6 @@ async function writeOutGameJson(gameJson)
 let randNum = Math.floor(Math.random()*1000000000000);
 
 /*
-setup vertex-ai-project as myvertexai-410504
-/*
 start new chat-with-ai game-design-conversation-${randNum}.json
 */
 

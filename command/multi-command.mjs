@@ -1,5 +1,5 @@
-import { expandFilePath, extractLambdaFunctionBody } from 'fusion-hub/functions';
-import { error, log, properties as cliProperties } from 'fusion-hub/cli';
+import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput } from 'fusion-hub/functions';
+import { error, log, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
@@ -126,7 +126,7 @@ export async function process({input, joinedInput}) {
 
 async function repeatCommand()
 {
-    return await evalCommand(null, null, null, true);
+    return await evalCommand(null, {repeatQuery: true});
 }
 
 async function evalCommand(commandIn, settings)
@@ -138,9 +138,11 @@ async function evalCommand(commandIn, settings)
   
     settings ||= {};
   
-    settings.stopCommandIn = undefined;
-    settings.varTypeIn = undefined;
-    settings.repeatQuery = false;
+    settings.stopCommandIn ||= null;
+    settings.varTypeIn ||= null;
+    settings.repeatQuery ||= false;
+
+    const { stopCommandIn, varTypeIn, repeatQuery } = settings;
   
     let output = null;
 

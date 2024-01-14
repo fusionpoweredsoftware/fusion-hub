@@ -50,7 +50,6 @@ export function extractJson5Objects(text) {
               }
           }
       }
-    }
   }
 
   if (jsonObjects.length === 0)
