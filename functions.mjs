@@ -27,7 +27,8 @@ export function extractLambdaFunctionBody(func, substitutions) {
   return body;
 }
 
-export function extractJson5Objects(inputString) {
+export function extractJson5Objects(inputString, settings) {
+  const { isEnglishOnly } = settings;
   const jsonObjects = [];
   const lines = inputString.split('\n');
   let isInsideJsonBlock = false;
@@ -41,8 +42,13 @@ export function extractJson5Objects(inputString) {
     } else if (isInsideJsonBlock && line.trim() === '```') {
       isInsideJsonBlock = false;
       try {
-        const parsedObject = json5.parse(currentJsonBlock);
-        jsonObjects.push(parsedObject);
+        let nonEnglishStrings = extractContinuousJapaneseAndChinese(currentJsonBlock);
+        if (!isEnglishOnly || nonEnglishStrings.length==0) {
+          const parsedObject = json5.parse(currentJsonBlock);
+          jsonObjects.push(parsedObject);
+        } else {
+          throw `Non-english Characters Detected: ${nonEnglishStrings}`;
+        }
         currentJsonBlock = ''; // Reset the current block
       } catch (err) {
         jsonObjects.push(`Error parsing JSON: ${err}\n\nJSON parsed: ${currentJsonBlock}`);
@@ -61,7 +67,11 @@ export const filterOutput = (output, filterSettings=null) => {
 
   if (filterSettings.typeOfVar == 'JSON')
   {
-    const json = extractJson5Objects(output);
+    const json = extractJson5Objects(output, { isEnglishOnly: true });
+    return (json.length > 0) ? json[0] : null;
+  } 
+  else if (filterSettings.typeOfVar == 'JSONNonEnglish') {
+    const json = extractJson5Objects(output, { isEnglishOnly: false });
     return (json.length > 0) ? json[0] : null;
   } else if (filterSettings.typeOfVar == "text") {
     return output;
@@ -242,7 +252,8 @@ export function getTimestamp() {
 
 export async function stabilizeOutput({repeatCommand, jsonOutput, jsonComponent,targetJson,targetJsonComponent=jsonComponent,attempt=0, attemptMax=5}) {
   while ((!isObject(jsonOutput) || !jsonOutput[jsonComponent] || !isIterable(jsonOutput[jsonComponent]) || jsonOutput[jsonComponent].length == 0) && attempt++<attemptMax) {
-    for (const key in Object.keys(jsonOutput)) {
+    jsonOutput ||= {};
+    for (const key in jsonOutput) {
       delete jsonOutput[key];
     }
     const jsonOutputAssignmentValue = await repeatCommand();
@@ -267,4 +278,15 @@ export const isIterable = (obj) =>
         return false;
     }
     return typeof obj[Symbol.iterator] === 'function';
+}
+
+function extractContinuousJapaneseAndChinese(inputString) {
+  const regex = /[\u4e00-\u9fa5\u3040-\u309F\u30A0-\u30FF]+/g;
+  const matches = inputString.match(regex);
+  
+  if (matches) {
+    return matches.map(match => `${match}`);
+  } else {
+    return [];
+  }
 }

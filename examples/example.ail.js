@@ -7,7 +7,7 @@ script:
 let script={};
 let attempt = 0;
 let attemptMax = 5;
-
+ 
 // kludge
 function isIterable(obj) 
 {
