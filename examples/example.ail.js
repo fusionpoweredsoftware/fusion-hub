@@ -163,16 +163,21 @@ for (let i=1; i<=N; i++)
         objective.objectiveDetails||={};
 
         // kludge
-        attempt = 0;
-        attemptMax=5;
-        while ((!isObject(objectiveRoomDetailsJson) || !objectiveRoomDetailsJson.newRooms || !isIterable(objectiveRoomDetailsJson.newRooms) || objectiveRoomDetailsJson.newRooms.length == 0) && attempt++<attemptMax)
-            objectiveRoomDetailsJson = await repeatCommand();
+        // attempt = 0;
+        // attemptMax=5;
+        // while ((!isObject(objectiveRoomDetailsJson) || !objectiveRoomDetailsJson.newRooms || !isIterable(objectiveRoomDetailsJson.newRooms) || objectiveRoomDetailsJson.newRooms.length == 0) && attempt++<attemptMax)
+        //     objectiveRoomDetailsJson = await repeatCommand();
 
-        if (objectiveRoomDetailsJson.newRooms && objectiveRoomDetailsJson.newRooms.length>0)
-            objective.objectiveDetails.newRooms = objectiveRoomDetailsJson.newRooms
-        else    
-            objective.objectiveDetails.newRooms = [];
-
+        // if (objectiveRoomDetailsJson.newRooms && objectiveRoomDetailsJson.newRooms.length>0)
+        //     objective.objectiveDetails.newRooms = objectiveRoomDetailsJson.newRooms
+        // else    
+        //     objective.objectiveDetails.newRooms = [];
+        await stabilizeOutput({
+            repeatCommand,
+            jsonOutput: objectiveRoomDetailsJson,
+            jsonComponent: 'newRooms',
+            targetJson: objective.objectiveDetails
+        });
 
         /*(objectivePuzzleDetailsJson, JSON)
         For reference, this is the complete story recap: ${recap}
@@ -198,15 +203,21 @@ for (let i=1; i<=N; i++)
         */
 
         // kludge
-        attempt = 0;
-        attemptMax=5;
-        while ((!isObject(objectivePuzzleDetailsJson) || !objectivePuzzleDetailsJson.puzzles || !isIterable(objectivePuzzleDetailsJson.puzzles) || objectivePuzzleDetailsJson.puzzles.length == 0) && attempt++<attemptMax)
-            objectivePuzzleDetailsJson = await repeatCommand();
+        // attempt = 0;
+        // attemptMax=5;
+        // while ((!isObject(objectivePuzzleDetailsJson) || !objectivePuzzleDetailsJson.puzzles || !isIterable(objectivePuzzleDetailsJson.puzzles) || objectivePuzzleDetailsJson.puzzles.length == 0) && attempt++<attemptMax)
+        //     objectivePuzzleDetailsJson = await repeatCommand();
         
-        if (objectivePuzzleDetailsJson.puzzles && objectivePuzzleDetailsJson.puzzles.length>0)
-            objective.objectiveDetails.puzzles = objectivePuzzleDetailsJson.puzzles
-        else    
-            objective.objectiveDetails.puzzles = [];
+        // if (objectivePuzzleDetailsJson.puzzles && objectivePuzzleDetailsJson.puzzles.length>0)
+        //     objective.objectiveDetails.puzzles = objectivePuzzleDetailsJson.puzzles
+        // else    
+        //     objective.objectiveDetails.puzzles = [];
+        await stabilizeOutput({
+            repeatCommand,
+            jsonOutput: objectivePuzzleDetailsJson,
+            jsonComponent: 'puzzles',
+            targetJson: objective.objectiveDetails
+        });
 
         for (var room of objective.objectiveDetails.newRooms)
         {
@@ -262,15 +273,21 @@ for (let i=1; i<=N; i++)
             */
 
             // kludge
-            attempt = 0;
-            attemptMax=5;
-            while ((!isObject(roomItemsJson) || !roomItemsJson.items || !isIterable(roomItemsJson.items) || roomItemsJson.items.length == 0) && attempt++<attemptMax)
-                roomItemsJson = await repeatCommand();
+            // attempt = 0;
+            // attemptMax=5;
+            // while ((!isObject(roomItemsJson) || !roomItemsJson.items || !isIterable(roomItemsJson.items) || roomItemsJson.items.length == 0) && attempt++<attemptMax)
+            //     roomItemsJson = await repeatCommand();
 
-            if (roomItemsJson.items && roomItemsJson.items>0)
-                room.items = roomItemsJson.items
-            else    
-                room.items = [];
+            // if (roomItemsJson.items && roomItemsJson.items>0)
+            //     room.items = roomItemsJson.items
+            // else    
+            //     room.items = [];
+            await stabilizeOutput({
+                repeatCommand,
+                jsonOutput: roomItemsJson,
+                jsonComponent: 'items',
+                targetJson: room
+            });
 
             /*(roomCharactersJson, JSON)
             For reference, this is the complete story recap: ${recap}

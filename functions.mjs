@@ -240,6 +240,21 @@ export function getTimestamp() {
   return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}.${milliseconds}`;
 }
 
+export async function stabilizeOutput({repeatCommand, jsonOutput, jsonComponent,targetJson,targetJsonComponent=jsonComponent,attempt=0, attemptMax=5}) {
+  while ((!isObject(jsonOutput) || !jsonOutput[jsonComponent] || !isIterable(jsonOutput[jsonComponent]) || jsonOutput[jsonComponent].length == 0) && attempt++<attemptMax) {
+    for (const key of Object.keys(jsonOutput)) {
+      delete obj[key];
+    }
+    const jsonOutputAssignmentValue = await repeatCommand();
+    Object.assign(jsonOutput, jsonOutputAssignmentValue);
+  }
+
+  if (jsonOutput[jsonComponent] && jsonOutput[jsonComponent].length>0) {
+    targetJson[targetJsonComponent] = jsonOutput[jsonComponent];
+  } else    
+    targetJson[targetJsonComponent] = [];
+}
+
 export const addPeriodToBasename = (filePath) => path.join(path.dirname(filePath), `.${path.basename(filePath)}`);
 export const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 export const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
