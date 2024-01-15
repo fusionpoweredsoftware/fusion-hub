@@ -184,13 +184,13 @@ export async function evalCommand(commandIn, settings)
             {
                 output = await filterOutput(output, {typeOfVar: varType});
             }
-            if (!repeatQuery)
+            if (!repeatQuery)s
                 lastOutput=output;
             /// kludge
             const isErrorMessage = isString(output);
             if ((!isObject(output) || isErrorMessage) && varType=='JSON')
             {
-                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON out.  You must produce valid JSON.  Do not produce the same response as last time!!! ${isErrorMessage ? `\n\nUse the output from the JSON parser to help resolve the issue: ${output}` : ''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false}  });if (varType && output)
+                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON out.  You must produce valid JSON.  Do not produce the same response as last time!!! ${isErrorMessage ? `\n\nUse the output from the JSON parser to help resolve the issue: ${output}` : ''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory}  });if (varType && output)
                 {
                     output = await filterOutput(output, {typeOfVar: varType});
                 }
