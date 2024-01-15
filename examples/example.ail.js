@@ -117,8 +117,8 @@ for (let i=1; i<=N; i++)
     myGameJSON.chapters[i].chapterDetails=chapterJson
 
     // kludge
-    if (!isObject(myGameJSON) || !chapterJson.objectives || !isIterable(chapterJson.objectives) || chapterJson.objectives.length == 0)
-        myGameJSON = await repeatCommand();
+    if (!isObject(chapterJson) || !chapterJson.objectives || !isIterable(chapterJson.objectives) || chapterJson.objectives.length == 0)
+        chapterJson = await repeatCommand();
 
 
     // Loop over objectives
