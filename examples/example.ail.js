@@ -120,7 +120,7 @@ for (let i=1; i<=N; i++)
         chapterJson = await repeatCommand();
 
     myGameJSON.chapters[i].chapterDetails=chapterJson
-    
+
     // Loop over objectives
     for (var objective of chapterJson.objectives)
     {
@@ -173,7 +173,7 @@ for (let i=1; i<=N; i++)
         //     objective.objectiveDetails.newRooms = objectiveRoomDetailsJson.newRooms
         // else    
         //     objective.objectiveDetails.newRooms = [];
-        await stabilizeOutput({
+        objectiveRoomDetailsJson = await stabilizeOutput({
             repeatCommand,
             jsonOutput: objectiveRoomDetailsJson,
             jsonComponent: 'newRooms',
@@ -213,7 +213,7 @@ for (let i=1; i<=N; i++)
         //     objective.objectiveDetails.puzzles = objectivePuzzleDetailsJson.puzzles
         // else    
         //     objective.objectiveDetails.puzzles = [];
-        await stabilizeOutput({
+        objectivePuzzleDetailsJson = await stabilizeOutput({
             repeatCommand,
             jsonOutput: objectivePuzzleDetailsJson,
             jsonComponent: 'puzzles',
@@ -283,7 +283,7 @@ for (let i=1; i<=N; i++)
             //     room.items = roomItemsJson.items
             // else    
             //     room.items = [];
-            await stabilizeOutput({
+            roomItemsJson = await stabilizeOutput({
                 repeatCommand,
                 jsonOutput: roomItemsJson,
                 jsonComponent: 'items',
@@ -360,7 +360,7 @@ for (let i=1; i<=N; i++)
             //     room.characters = [];
 
             // await writeOutGameJson(myGameJSON)
-            await stabilizeOutput({
+            roomCharactersJson = await stabilizeOutput({
                 repeatCommand,
                 jsonOutput: roomCharactersJson,
                 jsonComponent: 'characters',

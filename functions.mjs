@@ -252,16 +252,14 @@ export function getTimestamp() {
 
 export async function stabilizeOutput({repeatCommand, jsonOutput, jsonComponent,targetJson,targetJsonComponent=jsonComponent,attempt=0, attemptMax=5}) {
   while ((!isObject(jsonOutput) || !jsonOutput[jsonComponent] || !isIterable(jsonOutput[jsonComponent]) || jsonOutput[jsonComponent].length == 0) && attempt++<attemptMax) {
-    jsonOutput ||= {};
-    Object.keys(jsonOutput).forEach(key => delete jsonOutput[key]);
-    const jsonOutputAssignmentValue = await repeatCommand();
-    Object.assign(jsonOutput, jsonOutputAssignmentValue);
+    jsonOutput = await repeatCommand();
   }
 
   if (jsonOutput[jsonComponent] && jsonOutput[jsonComponent].length>0) {
     targetJson[targetJsonComponent] = jsonOutput[jsonComponent];
   } else    
     targetJson[targetJsonComponent] = [];
+  return jsonOutput;
 }
 
 export const addPeriodToBasename = (filePath) => path.join(path.dirname(filePath), `.${path.basename(filePath)}`);
