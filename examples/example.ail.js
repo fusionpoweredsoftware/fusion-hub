@@ -114,13 +114,13 @@ for (let i=1; i<=N; i++)
     */
 
     let savedLength = ai.chatHistory.length;
-    myGameJSON.chapters[i].chapterDetails=chapterJson
 
     // kludge
     if (!isObject(chapterJson) || !chapterJson.objectives || !isIterable(chapterJson.objectives) || chapterJson.objectives.length == 0)
         chapterJson = await repeatCommand();
 
-
+    myGameJSON.chapters[i].chapterDetails=chapterJson
+    
     // Loop over objectives
     for (var objective of chapterJson.objectives)
     {
