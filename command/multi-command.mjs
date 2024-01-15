@@ -117,6 +117,7 @@ export async function process({input, joinedInput}) {
         }
 
         log("(async () => {" + codeToEvalFinal + "})()")
+        
         eval("(async () => {" + codeToEvalFinal + "})()" )
     }
 }
