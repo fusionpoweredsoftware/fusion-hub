@@ -7,9 +7,17 @@ import crypto from 'crypto';
 import json5 from 'json5'; // Are we using this?
 
 
-const ai = {
+export const ai = {
     chatHistory: []
 }
+
+export const parser = {
+    json5,
+    stabilizeOutput
+}
+
+export const lastSetup = {};
+
 let lastCommand = null;
 let lastStopCommand = null;
 let lastVarType = null;
@@ -20,7 +28,7 @@ export const command = {
     name: "multi-command",
     description: "Run multiple commands from a file.",
     examples: `multi-command <file.txt> [parameters]`,
-    isInputCaseSensitive: false,
+    isInputCaseSensitive: true,
     isStartable: false
   };
 
@@ -63,11 +71,11 @@ export async function process({input, joinedInput}) {
     }
 
     let lines = commandText.split(/\r\n|\n/);
-    const stopCommand = lines[3];
+    const stopCommand = lines[3].slice(2);
     let scriptStart=3;
     for (; scriptStart<lines.length; scriptStart++)
     {
-        if (lines[scriptStart]=='script:')
+        if (lines[scriptStart].slice(2)=='script:')
             break;
     }
     let script={};
@@ -75,14 +83,18 @@ export async function process({input, joinedInput}) {
     {
         let codeToEval= '\n' + lines.slice(scriptStart+1).join('\n');
 
-        let codeToEvalSplit = codeToEval.split(new RegExp(lines[1]));
+        let codeToEvalSplit = codeToEval.split(new RegExp(lines[1].slice(2)));
         let codeToEvalFinal = codeToEvalSplit[0];
-        let commandBlockClosed = true; // are we using this?
+        let commandBlockClosed = true; 
+        Object.assign(lastSetup, {
+            scriptVariables: script,
+            commandBlockClosed
+        });
         
         let commandAndCode = null
         for (let i=1; i < codeToEvalSplit.length; i++)
         {
-            commandAndCode = codeToEvalSplit[i].split(new RegExp(lines[2]))
+            commandAndCode = codeToEvalSplit[i].split(new RegExp(lines[2].slice(2)))
 
             if (commandAndCode.length >= 1 && commandAndCode.length <= 2)
             {

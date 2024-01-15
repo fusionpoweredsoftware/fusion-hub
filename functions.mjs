@@ -254,7 +254,7 @@ export async function stabilizeOutput({repeatCommand, jsonOutput, jsonComponent,
   while ((!isObject(jsonOutput) || !jsonOutput[jsonComponent] || !isIterable(jsonOutput[jsonComponent]) || jsonOutput[jsonComponent].length == 0) && attempt++<attemptMax) {
     jsonOutput = await repeatCommand();
   }
-
+  
   if (jsonOutput[jsonComponent] && jsonOutput[jsonComponent].length>0) {
     targetJson[targetJsonComponent] = jsonOutput[jsonComponent];
   } else    
