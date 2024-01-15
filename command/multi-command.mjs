@@ -184,7 +184,7 @@ export async function evalCommand(commandIn, settings)
             {
                 output = await filterOutput(output, {typeOfVar: varType});
             }
-            if (!repeatQuery)s
+            if (!repeatQuery)
                 lastOutput=output;
             /// kludge
             const isErrorMessage = isString(output);

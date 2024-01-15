@@ -71,12 +71,6 @@ Make sure you do *ALL* of the chapters.  Note, only in this case I put a null to
 ${script.json.stipulations||''} 
 */
 
-let chaptersRecap = '';
-for (let i = 1; i < myGameJSON.chapters.length; i++) {
-    chaptersRecap += ` - ${i}. ${myGameJSON.chapters[i].chapterText}`;
-}
-let recap = `${myGameJSON.gameBackgroundStory} ${chaptersRecap}${script.json.stipulations ? (' - IMPORTANT NOTE FROM DESIGNER: '+script.json.stipulations):''}`;
-
 // kludge
 attempt = 0;
 attemptMax = 5;
@@ -87,6 +81,13 @@ if (attempt>attemptMax) {
     error(`Unable to proceed. Max number of attempts to create myGameJSON exceeded. Example of bad output:\n\n${myGameJSON}`)
     return;
 }
+
+let chaptersRecap = '';
+for (let i = 1; i < myGameJSON.chapters.length; i++) {
+    chaptersRecap += ` - ${i}. ${myGameJSON.chapters[i].chapterText}`;
+}
+let recap = `${myGameJSON.gameBackgroundStory} ${chaptersRecap}${script.json.stipulations ? (' - IMPORTANT NOTE FROM DESIGNER: '+script.json.stipulations):''}`;
+
 
 // Loop over Chapters
 for (let i=1; i<=N; i++)
