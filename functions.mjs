@@ -242,8 +242,8 @@ export function getTimestamp() {
 
 export async function stabilizeOutput({repeatCommand, jsonOutput, jsonComponent,targetJson,targetJsonComponent=jsonComponent,attempt=0, attemptMax=5}) {
   while ((!isObject(jsonOutput) || !jsonOutput[jsonComponent] || !isIterable(jsonOutput[jsonComponent]) || jsonOutput[jsonComponent].length == 0) && attempt++<attemptMax) {
-    for (const key of Object.keys(jsonOutput)) {
-      delete obj[key];
+    for (const key in Object.keys(jsonOutput)) {
+      delete jsonOutput[key];
     }
     const jsonOutputAssignmentValue = await repeatCommand();
     Object.assign(jsonOutput, jsonOutputAssignmentValue);
@@ -259,3 +259,12 @@ export const addPeriodToBasename = (filePath) => path.join(path.dirname(filePath
 export const sleep = (delay) => new Promise((resolve) => setTimeout(resolve, delay))
 export const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 export const isString = value => typeof value === 'string';
+
+export const isIterable = (obj) =>
+{
+    // checks for null and undefined
+    if (obj == null) {
+        return false;
+    }
+    return typeof obj[Symbol.iterator] === 'function';
+}

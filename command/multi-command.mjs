@@ -1,4 +1,4 @@
-import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput, isObject, isString } from 'fusion-hub/functions';
+import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput, isObject, isString, stabilizeOutput } from 'fusion-hub/functions';
 import { error, log, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
