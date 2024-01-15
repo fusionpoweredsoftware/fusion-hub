@@ -112,6 +112,7 @@ for (let i=1; i<=N; i++)
     Note here I use "..." to indicate there may be multiple JSON (standard JSON) objects in an array.  Also, note objectives is an array of JSON (standard JSON) objects. Do not leave out any objectives.
     */
 
+    let savedLength = ai.aiChatHistory.length;
     myGameJSON.chapters[i].chapterDetails=chapterJson
 
     // kludge
@@ -342,6 +343,11 @@ for (let i=1; i<=N; i++)
 
             await writeOutGameJson(myGameJSON)
         }
+    }
+
+    while (ai.aiChatHistory.length > savedLength)
+    {
+        ai.aiChatHistory.pop()
     }
 }
 
