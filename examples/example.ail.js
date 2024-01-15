@@ -358,14 +358,13 @@ for (let i=1; i<=N; i++)
             //     room.characters = roomCharactersJson.characters;
             // else    
             //     room.characters = [];
-
-            // await writeOutGameJson(myGameJSON)
             roomCharactersJson = await stabilizeOutput({
                 repeatCommand,
                 jsonOutput: roomCharactersJson,
                 jsonComponent: 'characters',
                 targetJson: room
             });
+            await writeOutGameJson(myGameJSON);
         }
     }
 
