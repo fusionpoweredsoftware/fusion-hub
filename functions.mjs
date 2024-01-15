@@ -253,9 +253,7 @@ export function getTimestamp() {
 export async function stabilizeOutput({repeatCommand, jsonOutput, jsonComponent,targetJson,targetJsonComponent=jsonComponent,attempt=0, attemptMax=5}) {
   while ((!isObject(jsonOutput) || !jsonOutput[jsonComponent] || !isIterable(jsonOutput[jsonComponent]) || jsonOutput[jsonComponent].length == 0) && attempt++<attemptMax) {
     jsonOutput ||= {};
-    for (const key in jsonOutput) {
-      delete jsonOutput[key];
-    }
+    Object.keys(jsonOutput).forEach(key => delete jsonOutput[key]);
     const jsonOutputAssignmentValue = await repeatCommand();
     Object.assign(jsonOutput, jsonOutputAssignmentValue);
   }
