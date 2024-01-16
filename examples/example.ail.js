@@ -119,7 +119,6 @@ if (!myGameJSON)
     throw "There was an error processing the game JSON.";
 
 myGameJSON.stopIndex ||= 1;
-//highly temporary kludge end
 
 let recap = myGameJSON.recap;
 
@@ -198,15 +197,6 @@ for (let i=myGameJSON.stopIndex; i<=N; i++)
         objective.objectiveDetails||={};
 
         // kludge
-        // attempt = 0;
-        // attemptMax=5;
-        // while ((!isObject(objectiveRoomDetailsJson) || !objectiveRoomDetailsJson.newRooms || !isIterable(objectiveRoomDetailsJson.newRooms) || objectiveRoomDetailsJson.newRooms.length == 0) && attempt++<attemptMax)
-        //     objectiveRoomDetailsJson = await repeatCommand();
-
-        // if (objectiveRoomDetailsJson.newRooms && objectiveRoomDetailsJson.newRooms.length>0)
-        //     objective.objectiveDetails.newRooms = objectiveRoomDetailsJson.newRooms
-        // else    
-        //     objective.objectiveDetails.newRooms = [];
         objectiveRoomDetailsJson = await stabilizeOutput({
             repeatCommand,
             jsonOutput: objectiveRoomDetailsJson,
@@ -238,15 +228,6 @@ for (let i=myGameJSON.stopIndex; i<=N; i++)
         */
 
         // kludge
-        // attempt = 0;
-        // attemptMax=5;
-        // while ((!isObject(objectivePuzzleDetailsJson) || !objectivePuzzleDetailsJson.puzzles || !isIterable(objectivePuzzleDetailsJson.puzzles) || objectivePuzzleDetailsJson.puzzles.length == 0) && attempt++<attemptMax)
-        //     objectivePuzzleDetailsJson = await repeatCommand();
-        
-        // if (objectivePuzzleDetailsJson.puzzles && objectivePuzzleDetailsJson.puzzles.length>0)
-        //     objective.objectiveDetails.puzzles = objectivePuzzleDetailsJson.puzzles
-        // else    
-        //     objective.objectiveDetails.puzzles = [];
         objectivePuzzleDetailsJson = await stabilizeOutput({
             repeatCommand,
             jsonOutput: objectivePuzzleDetailsJson,
@@ -308,15 +289,6 @@ for (let i=myGameJSON.stopIndex; i<=N; i++)
             */
 
             // kludge
-            // attempt = 0;
-            // attemptMax=5;
-            // while ((!isObject(roomItemsJson) || !roomItemsJson.items || !isIterable(roomItemsJson.items) || roomItemsJson.items.length == 0) && attempt++<attemptMax)
-            //     roomItemsJson = await repeatCommand();
-
-            // if (roomItemsJson.items && roomItemsJson.items>0)
-            //     room.items = roomItemsJson.items
-            // else    
-            //     room.items = [];
             roomItemsJson = await stabilizeOutput({
                 repeatCommand,
                 jsonOutput: roomItemsJson,
@@ -382,16 +354,6 @@ for (let i=myGameJSON.stopIndex; i<=N; i++)
             */
 
             // kludge
-            // attempt = 0;
-            // attemptMax=5;
-            // while ((!isObject(roomCharactersJson) || !roomCharactersJson.characters || !isIterable(roomCharactersJson.characters) || roomCharactersJson.characters.length == 0) && attempt++<attemptMax) {
-            //     roomCharactersJson = await repeatCommand();
-            // }
-
-            // if (roomCharactersJson.characters && roomCharactersJson.characters>0)
-            //     room.characters = roomCharactersJson.characters;
-            // else    
-            //     room.characters = [];
             roomCharactersJson = await stabilizeOutput({
                 repeatCommand,
                 jsonOutput: roomCharactersJson,
