@@ -409,6 +409,7 @@ for (let i=myGameJSON.stopIndex; i<=N; i++)
         ai.chatHistory.pop()
     }
 }
+log('Game definition created successfully.');
 
 /*
 stopCommand()

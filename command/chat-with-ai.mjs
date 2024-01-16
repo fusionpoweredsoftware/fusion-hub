@@ -39,6 +39,7 @@ export async function start({
     return false;
   }
   const { sessionId = 0 } = initParameters;
+  initParameters.isClearingMemory = false;
   if (ai.verifyCurrentChatHistoryExists()) action ||= "Resuming";
   if (!ai.checkInitialized(sessionId))
     await ai.init({ action, inputHistoryFilePath, outputHistoryFilePath, ...initParameters });
@@ -140,6 +141,7 @@ start.old = async (historyJsonFilePath=null,
 ) => {
   initParameters.newDefaultStdout ||= cli.output;
   initParameters.newDefaultConsole ||= cli.output;
+  initParameters.isClearingMemory = false;
   if (!historyJsonFilePath) {
     cliErrors.noArgumentsSuppliedError(1);
     return false;
