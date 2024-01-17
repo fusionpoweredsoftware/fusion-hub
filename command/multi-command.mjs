@@ -6,10 +6,14 @@ import _fs from 'fs';
 import crypto from 'crypto';
 import json5 from 'json5'; // Are we using this?
 
-
 export const ai = {
     chatHistory: []
 }
+
+export const aiChatSettings = {
+    isStreaming: false,
+    chatHistory: ai.chatHistory
+};
 
 export const parser = {
     json5,
@@ -32,18 +36,19 @@ export const command = {
     isStartable: false
   };
 
-export async function process({input, joinedInput}) {
+export async function process({input, joinedInput, settings = {}}) {
     if (input.length < 1 || input[0] == '')
     {
         log(command.examples);
         return;
     }
+    settings.aiChatSettings ||= {};
+    
     let readFilePath = await expandFilePath(input[0], {contextDir: 'multi-command-history'})
     let commandText = await fs.readFile(readFilePath, 'utf-8');
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
     let hashCommandText = commandText.replace(/multi-command [^ ]+/, '');
     const hash = crypto.createHash('sha256').update(hashCommandText).digest('hex');
-
 
     let historyFilename = path.basename(input[0]);
     if (/-[0-9a-f]{64}/.test(historyFilename))
@@ -116,7 +121,7 @@ export async function process({input, joinedInput}) {
                     }
                 }
                 const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
+                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
                 const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand });
                 codeToEvalFinal += `${prependAssignment}${codeBody};\n`; 
                 codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1] + '\n': '';
@@ -133,7 +138,7 @@ export async function process({input, joinedInput}) {
         }
 
         log("(async () => {" + codeToEvalFinal + "})()")
-        eval("(async () => {" + codeToEvalFinal + "})()" )
+        eval("(async () => {" + codeToEvalFinal + "})()")
     }
 }
 
@@ -154,8 +159,11 @@ export async function evalCommand(commandIn, settings)
     settings.stopCommandIn ||= null;
     settings.varTypeIn ||= null;
     settings.repeatQuery ||= false;
-
+    settings.aiChatSettings ||= {};
+    
     const { repeatQuery } = settings;
+
+    Object.assign(aiChatSettings, settings.aiChatSettings);
 
     let output = null;
 
@@ -173,7 +181,7 @@ export async function evalCommand(commandIn, settings)
     }
     else
     {
-        await sleep(5000);
+        await sleep(1000);
 
         
         // contains kludge
@@ -189,9 +197,7 @@ export async function evalCommand(commandIn, settings)
     else 
     {   
         try {
-            const { chatHistory } = ai;
-            
-            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput)) ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory }  });
+            output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput)) ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}\``), { isThrowing: true, aiChatSettings  });
             if (varType!='null' && isString(output))
             {
                 output = await filterOutput(output, {typeOfVar: varType});
@@ -202,7 +208,8 @@ export async function evalCommand(commandIn, settings)
             const isErrorMessage = isString(output);
             if ((!isObject(output) || isErrorMessage) && varType=='JSON')
             {
-                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON out.  You must produce valid JSON.  Do not produce the same response as last time!!! ${isErrorMessage ? `\n\nUse the output from the JSON parser to help resolve the issue: ${output}` : ''}\``), { isThrowing: true, aiChatSettings: {isStreaming: false, chatHistory}  });if (varType && output)
+                output = await executeCommand(eval(`\`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON out.  You must produce valid JSON.  Do not produce the same response as last time!!! ${isErrorMessage ? `\n\nUse the output from the JSON parser to help resolve the issue: ${output}` : ''}\``), { isThrowing: true, aiChatSettings  });
+                if (varType && output)
                 {
                     output = await filterOutput(output, {typeOfVar: varType});
                 }
