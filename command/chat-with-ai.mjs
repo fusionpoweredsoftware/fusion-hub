@@ -28,7 +28,7 @@ export async function start({
   action = undefined,
   inputHistoryFilePath = undefined,
   outputHistoryFilePath = undefined,
-  startNewIfInitilizationFailed = true,
+  startNewIfInitializationFailed = true,
   initParameters = {}
 } = {}) {
   initParameters.newDefaultStdout ||= cli.output;
@@ -47,13 +47,13 @@ export async function start({
     action ||= "Re-initializing";
     await ai.init({ action, inputHistoryFilePath, outputHistoryFilePath, ...initParameters });
   }
-  if (!ai.checkInitialized(sessionId) && startNewIfInitilizationFailed)
+  if (!ai.checkInitialized(sessionId) && startNewIfInitializationFailed)
     start.new(null, initParameters);
   return true;
 }
 
 start.new = async (
-  filename = null,
+  filePath = null,
   initParameters = {},
   startType = 'new'
 ) => {
@@ -76,7 +76,7 @@ start.new = async (
     await start({
       action: "Finalizing previous",
       inputHistoryFilePath: temporaryHistoryFilePath,
-      startNewIfInitilizationFailed: false
+      startNewIfInitializationFailed: false
     });
     let suggestedFilenameSource, suggestedFilename, suggestedFilePath;
     if (setup.settings['current-input-history-file-path']==null) {
@@ -127,9 +127,9 @@ start.new = async (
     setup.settings['current-input-history-file-path']=null;
   if (startType!='specified')
     await ai.init({ action: "Starting "+startType, ...initParameters });
-  if (filename)
+  if (filePath)
   {
-    setup.settings['current-input-history-file-path'] = filename;
+    setup.settings['current-input-history-file-path'] = filePath;
     await setup.pushSetupSettings();
     return await start.new(null, {}, 'specified');
   }

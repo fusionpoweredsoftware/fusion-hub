@@ -37,14 +37,17 @@ let rl;
 export const executeCommand = async (input, settings = {}, extensiveInputBuffer = null) => {
   if (!input || !input.split)
     return;
+  let joinedInput = input;
   input = getArgs(input);
   if (input.length > 0 && input[0].length > 0) {
     const command = properties.commandMode ? properties.commandMode : input[0].toLowerCase();
     if (properties.lockModeTo && properties.lockModeTo != command)
       return;
-    if (!properties.commandMode)
+    if (!properties.commandMode) {
       input = input.slice(1);
-    let joinedInput = input.join(" "), lowercaseJoinedInput = joinedInput.toLowerCase(), lowercaseInput = lowercaseJoinedInput.split(" ");
+      joinedInput = ((joinedInput.trim()+" ").replace(/^[^ ]* /g,'')).trim();
+    }
+    let lowercaseJoinedInput = joinedInput.toLowerCase(), lowercaseInput = lowercaseJoinedInput.split(" ");
     try {
       properties.commandPath ||= defaultCommandPath;
       properties.commandModuleRoot ||= commandModuleRoot;
@@ -107,7 +110,7 @@ async function init(initialInput) {
     const commandModeBefore = properties.commandMode;
     try {
       rl.pause();
-      await pushCliHistory(rl, properties.commandMode);
+      //await pushCliHistory(rl, properties.commandMode);
       await executeCommand(input);
     } catch (err) {
       error(err);
