@@ -46,9 +46,10 @@ export async function process({input, joinedInput, settings = {}}) {
     settings.app ||= {};
     settings.app.input ||= '';
     settings.app.settings ||= {};
+    const { mcFileContextDir = 'multi-command', historyContextDir = 'multi-command-history'  } = settings;
     const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app, aiChatSettings } = settings;
 
-    let readFilePath = await expandFilePath(input[0], {contextDir: 'multi-command-history'})
+    let readFilePath = await expandFilePath(input[0], {contextDir: mcFileContextDir})
     let commandText = await fs.readFile(readFilePath, 'utf-8');
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
     let hashCommandText = commandText.replace(/multi-command [^ ]+/, '');
@@ -65,7 +66,7 @@ export async function process({input, joinedInput, settings = {}}) {
     }
 
     const historyFileShortPath = path.join('~~~', historyFilename);
-    const historyFile = await expandFilePath(historyFileShortPath, {contextDir: 'multi-command-history'});
+    const historyFile = await expandFilePath(historyFileShortPath, {contextDir: historyContextDir});
     let historyExists = _fs.existsSync(historyFile);
     
     if (!historyExists)

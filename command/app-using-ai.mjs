@@ -149,12 +149,13 @@ export async function process({
     multiCommandSettings.aiChatSettings ||= {};
     multiCommandSettings.aiChatSettings.sessionId = sessionId;
     multiCommandSettings.app ||= {};
-    multiCommandSettings.app.input = appInput;
-    multiCommandSettings.app.settings = multiCommandSettings.appSettings;
+    multiCommandSettings.app.input = appInput || '';
+    multiCommandSettings.app.settings = multiCommandSettings.appSettings || {}; 
+    multiCommandSettings.contextDir ||= 'app';
     delete multiCommandSettings.appSettings;
     multiCommandSettings.app.filePath = multiCommandSettings.appFilePath;
     delete multiCommandSettings.appFilePath;
-    Object.assign(multiCommandSettings, settings);
+    Object.assign(multiCommandSettings.app, settings);
     cliProperties.commandMode = null;
     
     await runApp(appConfig.appFilePath, appInput, multiCommandSettings, isDebugging);
