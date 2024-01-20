@@ -33,7 +33,7 @@ ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
 const runApp = async (
     appFilePath,
     appInput,
-    multiCommandSettings,
+    multiCommandSettings={},
     isDebugging=false
   ) => {
     if (!isDebugging) {
@@ -63,7 +63,7 @@ export async function start(appFilePath = null,
     setup.settings['current-app-config'] = {
         appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
         appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
-        isDebugging: setup.settings["current-app-config"].isDebugging || false
+        isDebugging: false
     };
     await setup.pushSetupSettings();
     return await aiStart();
@@ -76,7 +76,11 @@ start.debug = async ({
         cliErrors.noArgumentsAllowedError();
         return false;
     }
-
+    setup.settings['current-app-config'] = {
+        appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
+        appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
+        isDebugging: true
+    };
     return await aiStart();
 }
 
