@@ -82,8 +82,8 @@ start.debug = async ({
 
 start.new = async (
     appFilePath = null,
-    historyJsonFilePath = null,
     appSettings = null,
+    historyJsonFilePath = null,
     parameterOverload = {}) => {
     if (typeof parameterOverload !== 'object') {
         cliErrors.argumentsLimitError(3);
@@ -102,8 +102,8 @@ start.new = async (
 
 start.old = async (
     appFilePath = null,
-    historyJsonFilePath = null,
     appSettings = null,
+    historyJsonFilePath = null,
     parameterOverload = {}) => {
     if (typeof parameterOverload !== 'object') {
         cliErrors.argumentsLimitError(3);
