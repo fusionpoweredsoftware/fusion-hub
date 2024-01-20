@@ -33,20 +33,20 @@ ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
 const runApp = async (
     appFilePath,
     appInput,
-    appSettings,
+    multiCommandSettings,
     isDebugging=false
   ) => {
     if (!isDebugging) {
-        appSettings.aiChatSettings = { chatStdout: { write: () => {} } };
-        appSettings.isLoggingMultiCommandFileContents = (appSettings.isLoggingMultiCommandFileContents!=undefined)  || false;
-        appSettings.isInterruptable = (appSettings.isInterruptable!=undefined) || false;
-        appSettings.isVerbose = false;
+        multiCommandSettings.aiChatSettings = { chatStdout: { write: () => {} } };
+        multiCommandSettings.isLoggingMultiCommandFileContents = (multiCommandSettings.isLoggingMultiCommandFileContents!=undefined)  || false;
+        multiCommandSettings.isInterruptable = (multiCommandSettings.isInterruptable!=undefined) || false;
+        multiCommandSettings.isVerbose = false;
     }
     
     await mcProcess({
       input: [appFilePath, ...getArgs(appInput)],
       joinedInput: (appFilePath + " " + appInput).trim(),
-      settings: appSettings,
+      settings: multiCommandSettings,
     });
   }
 
@@ -89,6 +89,8 @@ start.new = async (
         cliErrors.argumentsLimitError(3);
         return false;
     }
+    if (appFilePath)
+        appFilePath+=".app.ail.js";
     setup.settings['current-app-config'] = {
         appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
         appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
@@ -141,17 +143,21 @@ export async function process({
     };
 
     const appConfig = setup.settings['current-app-config'];
-    const appSettings = JSON.parse(JSON.stringify(appConfig));
+    const multiCommandSettings = JSON.parse(JSON.stringify(appConfig));
     const { isDebugging } = setup.settings['current-app-config'];
     
-    appSettings.aiChatSettings ||= {};
-    appSettings.aiChatSettings.sessionId = sessionId;
-    appSettings.app ||= {};
-    appSettings.app.input = appInput;
-    Object.assign(appSettings, settings);
+    multiCommandSettings.aiChatSettings ||= {};
+    multiCommandSettings.aiChatSettings.sessionId = sessionId;
+    multiCommandSettings.app ||= {};
+    multiCommandSettings.app.input = appInput;
+    multiCommandSettings.app.settings = multiCommandSettings.appSettings;
+    delete multiCommandSettings.appSettings;
+    multiCommandSettings.app.filePath = multiCommandSettings.appFilePath;
+    delete multiCommandSettings.appFilePath;
+    Object.assign(multiCommandSettings, settings);
     cliProperties.commandMode = null;
     
-    await runApp(appConfig.appFilePath, appInput, appSettings, isDebugging);
+    await runApp(appConfig.appFilePath, appInput, multiCommandSettings, isDebugging);
 
    } catch (err) {
         error(err);

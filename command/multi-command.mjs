@@ -43,9 +43,9 @@ export async function process({input, joinedInput, settings = {}}) {
         return;
     }
     settings.aiChatSettings ||= {};
-    settings.app ||= {
-        input: ''
-    };
+    settings.app ||= {};
+    settings.app.input ||= '';
+    settings.app.settings ||= {};
     const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app, aiChatSettings } = settings;
 
     let readFilePath = await expandFilePath(input[0], {contextDir: 'multi-command-history'})

@@ -150,7 +150,6 @@ export const chat = async (textInput, {
       return;
     }
     if (chatHistory && Array.isArray(chatHistory)) {
-      aiChatsMap[sessionId].historyInternal.length=0;
       aiChatsMap[sessionId].historyInternal=chatHistory;
     }
     chatHistory ||= aiChatsMap[sessionId].historyInternal;
