@@ -1,4 +1,4 @@
-//**English to spansih translation app**
+//**English to spanish translation app**
 //(?:\r\n|\n)[ ]*/\*(?:\r\n|\n)?
 //(?:\r?\n?\*/)
 //STOP
