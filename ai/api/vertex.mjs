@@ -35,7 +35,7 @@ export const checkInitialized = (sessionId) => {
 }
 
 process.stdout.write = (...input) => {
-  const writeLog = defaultConsole.log;
+  const writeLog =defaultConsole.log;
   if (input[0].match(/^Error: 429 Too Many Requests\n    at GenerativeModel\.generateContentStream.*/g)) {
     writeLog("\nThe AI is currently busy. Try again later.\n")
   } else {

@@ -1,5 +1,5 @@
-import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput, isObject, isString, stabilizeOutput } from 'fusion-hub/functions';
-import { error, print, log, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
+import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename } from 'fusion-hub/functions';
+import { error, log, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
@@ -9,11 +9,6 @@ import json5 from 'json5';
 export const ai = {
     chatHistory: []
 }
-
-export const aiChatSettings = {
-    isStreaming: false,
-    chatHistory: ai.chatHistory
-};
 
 export const parser = {
     json5,
@@ -37,7 +32,8 @@ export const command = {
   };
 
 export async function process({input, joinedInput, settings = {}}) {
-    if (input.length < 1 || input[0] == '')
+    const filePath = input[0];
+    if (input.length < 1 || filePath == '')
     {
         log(command.examples);
         return;
@@ -47,15 +43,15 @@ export async function process({input, joinedInput, settings = {}}) {
     settings.app.input ||= '';
     settings.app.settings ||= {};
     const { mcFileContextDir = 'multi-command', historyContextDir = 'multi-command-history'  } = settings;
-    const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app, aiChatSettings } = settings;
+    const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app = {}, aiChatSettings = {}} = settings;
 
-    let readFilePath = await expandFilePath(input[0], {contextDir: mcFileContextDir})
+    let readFilePath = await expandFilePath(filePath, {contextDir: mcFileContextDir})
     let commandText = await fs.readFile(readFilePath, 'utf-8');
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
     let hashCommandText = commandText.replace(/multi-command [^ ]+/, '');
     const hash = crypto.createHash('sha256').update(hashCommandText).digest('hex');
 
-    let historyFilename = path.basename(input[0]);
+    let historyFilename = path.basename(filePath);
     if (/-[0-9a-f]{64}/.test(historyFilename))
     {
         historyFilename = historyFilename.replace(/-[^ ]{64}$/, '-' + hash);
@@ -95,7 +91,7 @@ export async function process({input, joinedInput, settings = {}}) {
         let codeToEval= '\n' + lines.slice(scriptStart+1).join('\n');
 
         let codeToEvalSplit = codeToEval.split(new RegExp(lines[1].slice(2)));
-        let codeToEvalFinal = codeToEvalSplit[0];
+        let codeToEvalFinal = codeToEvalSplit[0]+'\n';
         let commandBlockClosed = true; 
         Object.assign(lastSetup, {
             scriptVariables: script,
@@ -127,10 +123,10 @@ export async function process({input, joinedInput, settings = {}}) {
                     }
                 }
                 const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { app, aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
+                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
                 const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand });
                 codeToEvalFinal += `${prependAssignment}${codeBody};\n`; 
-                codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1] + '\n': '';
+                codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1]: '';
             }
             else if (commandAndCode.length > 2)
             {
@@ -142,13 +138,17 @@ export async function process({input, joinedInput, settings = {}}) {
         {
             error('Open command without close.');
         }
-        codeToEvalFinal = "(async () => {" + codeToEvalFinal + "})()";
+        const mcRunner = await fs.readFile('./mc-runner.mjs','utf-8');
+        codeToEvalFinal = mcRunner.replace("/*${codeToEvalFinal}*/",codeToEvalFinal);
+        const debuggableFile = addPeriodToBasename(readFilePath);
         if (isLoggingMultiCommandFileContents)
             log(codeToEvalFinal)
-        if (isInterruptable)
-            eval(codeToEvalFinal);
-        else
-            await eval(codeToEvalFinal);
+        await fs.writeFile(debuggableFile,codeToEvalFinal);
+        const importedCode = await import(debuggableFile);
+        if (isInterruptable) {
+            importedCode.run(input, app, aiChatSettings);
+        } else
+            await importedCode.run(input, app, aiChatSettings);
     }
 }
 
@@ -172,10 +172,11 @@ export async function evalCommand(commandIn, settings)
     settings.aiChatSettings ||= {};
     
     const { repeatQuery } = settings;
-    const { isCommandStartLogged = false } = settings;
+    const { isCommandStartLogged = false, aiChatSettings = {} } = settings;
 
     Object.assign(aiChatSettings, settings.aiChatSettings);
-
+    aiChatSettings.isStreaming ||= false;
+    aiChatSettings.chatHistory = ai.chatHistory;
     let output = null;
 
     let command = commandIn;

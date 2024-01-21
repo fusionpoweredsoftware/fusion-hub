@@ -2,6 +2,7 @@ import os from "os";
 import fs from "fs/promises";
 import _fs from "fs";
 import path from "path";
+import { cliRoot } from "fusion-hub/paths";
 import setup from "fusion-hub/setup";
 import json5 from "json5";
 let codeBlockCounter = 0;
@@ -95,12 +96,19 @@ export const expandFilePath = async (
   const { currentAppCacheDir, defaultContextDir } = await import(
     "fusion-hub/paths"
   );
+  const cli = await import(
+    "fusion-hub/cli"
+  );
   contextDir ||= defaultContextDir;
   appCacheDir ||= currentAppCacheDir;
+  if (/[a-z]/ig.test(filePath[0])) {
+    filePath = path.join("~~~",filePath);
+  }
   const fullFilePath = filePath
     .replace(/^\~\~\~/g, path.join(os.homedir(), "." + appCacheDir, contextDir))
     .replace(/^\~\~/g, path.join(os.homedir(), "." + appCacheDir))
-    .replace(/^\~/g, os.homedir());
+    .replace(/^\~/g, os.homedir())
+    .replace(/^\.\//g, cliRoot+'/');
   if (!_fs.existsSync(fullFilePath)) {
     await fs.mkdir(path.dirname(fullFilePath), { recursive: true });
   }

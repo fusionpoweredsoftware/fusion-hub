@@ -3,12 +3,8 @@
 //(?:\r?\n?\*/)
 //STOP
 //script:
-
-let script={};
-
-/*start chat-with-ai*/
- 
-/*(translationData, JSON)
+/*start chat-with-ai
+(translationData, JSON)
 This is not a conversation. I just want you to translate this text in quotes to Spanish: 
 "${app.input}"
 
