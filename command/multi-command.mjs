@@ -31,6 +31,18 @@ export const command = {
     isStartable: false
   };
 
+async function reloadModule(modulePath) {
+    // Append a unique timestamp as a query string
+    const newPath = `${modulePath}?update=${Date.now()}`;
+
+    // Dynamically import the module with the new path
+    const module = await import(newPath);
+
+    return module;
+}
+
+
+
 export async function process({input, joinedInput, settings = {}}) {
     const filePath = input[0];
     if (input.length < 1 || filePath == '')
@@ -144,7 +156,7 @@ export async function process({input, joinedInput, settings = {}}) {
         if (isLoggingMultiCommandFileContents)
             log(codeToEvalFinal)
         await fs.writeFile(debuggableFile,codeToEvalFinal);
-        const importedCode = await import(debuggableFile);
+        const importedCode = await reloadModule(debuggableFile);
         if (isInterruptable) {
             importedCode.run(input, app, aiChatSettings);
         } else
