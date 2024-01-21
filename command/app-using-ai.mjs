@@ -60,6 +60,8 @@ export async function start(appFilePath = null,
         cliErrors.argumentsLimitError(2);
         return false;
     }
+    if (appFilePath)
+        appFilePath+=".app.ail.js";
     setup.settings['current-app-config'] = {
         appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
         appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
@@ -69,13 +71,16 @@ export async function start(appFilePath = null,
     return await aiStart();
 }
 
-start.debug = async ({
-    parameterOverload = {},
-} = {}) => {
+start.debug = async (appFilePath = null,
+    appSettings = null,
+    parameterOverload = {}) => {
+
     if (typeof parameterOverload !== 'object') {
         cliErrors.noArgumentsAllowedError();
         return false;
     }
+    if (appFilePath)
+        appFilePath+=".app.ail.js";
     setup.settings['current-app-config'] = {
         appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
         appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},

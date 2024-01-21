@@ -137,7 +137,7 @@ export async function process({input, joinedInput, settings = {}}) {
                 const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
                 const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
                 const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand });
-                codeToEvalFinal += `${prependAssignment}${codeBody};\n`; 
+                codeToEvalFinal += `\n${prependAssignment}${codeBody};\n`; 
                 codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1]: '';
             }
             else if (commandAndCode.length > 2)

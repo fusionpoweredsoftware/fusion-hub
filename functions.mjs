@@ -83,6 +83,8 @@ export const filterOutput = (output, filterSettings=null) => {
 
 export const getArgs = (input) => {
   input = input.trim().match(/(?:[^\s']+|'[^'\\]*(?:\\.[^'\\]*)*')+/g);
+  if (!input)
+    return [''];
   for (let i = 0; i < input.length; i++)
     if (input[i][0] == `'` && input[i].match(/'$/g))
       input[i] = input[i].slice(1, -1).replace("\\'", "'");

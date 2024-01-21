@@ -170,9 +170,10 @@ export const chat = async (textInput, {
       streamResult = await aiChatsMap[sessionId].sendMessageStream(userMessage)
     }
     let finalOutput = '';
-    await chatStdout.write("\n");
+
     if (isStreaming)
     {
+      await chatStdout.write("\nai> ");
       for await (const item of streamResult.stream) {
         try {
           const len = item.candidates[0].content.parts.length;
@@ -206,7 +207,7 @@ export const chat = async (textInput, {
         } else
           await chatStdout.write('(No response)');
       } else
-        await chatStdout.write(responseText);
+        await chatStdout.write("\nai> "+responseText);
     }
     await chatStdout.write("\n\n");
     if (isPersistent)
