@@ -1,7 +1,7 @@
 import _fs from "fs";
 import { start as aiStart } from 'fusion-hub/command/chat-with-ai'
 import { process as mcProcess } from 'fusion-hub/command/multi-command'
-import { error, log, properties as cliProperties } from 'fusion-hub/cli';
+import { output, properties as cliProperties } from 'fusion-hub/cli';
 
 import {
     currentAiApiName
@@ -134,6 +134,7 @@ export async function process({
     settings = {},
 }) { 
    const { sessionId = 0 } = settings;
+   const { log, error } = output;
    try {
     if (sessionId in queue) {
         log("App already running.");

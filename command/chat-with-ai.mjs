@@ -5,7 +5,7 @@ import { currentAiApiName } from "fusion-hub/variables";
 import { getCurrentChatHistoryFilePath, getChatHistoryDirPath, getCommandModeHistoryFilePath } from "fusion-hub/paths";
 import { expandFilePath, extractJSONFilename, addPeriodToBasename  } from "fusion-hub/functions";
 import setup from "fusion-hub/setup";
-import cli from "fusion-hub/cli";
+import cli, { output } from "fusion-hub/cli";
 import path from 'path';
 
 export const command = {
@@ -57,6 +57,7 @@ start.new = async (
   initParameters = {},
   startType = 'new'
 ) => {
+  const { log, warn } = output;
   initParameters.newDefaultStdout ||= cli.output;
   initParameters.newDefaultConsole ||= cli.output;
   const { isPersistent = true } = initParameters;
@@ -99,17 +100,17 @@ start.new = async (
       copyNum++;
     }
     if (copyNum>100) {
-      cli.output.warn("\nWARNING: The AI is suggesting the same filename, but 99 copies were found. This is excessive; reverting to timestamps.\n")
+      warn("\nWARNING: The AI is suggesting the same filename, but 99 copies were found. This is excessive; reverting to timestamps.\n")
       suggestedFilename=temporaryHistoryFilename;
       suggestedFilePath=temporaryHistoryFilePath;
     } else
       suggestedFilename = path.basename(suggestedFilePath);
       if (startType==='specified') {
-        cli.output.log(
+        log(
           `Current conversation will be saved as: ${suggestedFilename}`
         );
       } else {
-        cli.output.log(
+        log(
           `Previous conversation saved as: ${suggestedFilename}`
         );
       }

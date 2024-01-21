@@ -1,6 +1,6 @@
 import { capitalizeFirstLetter } from 'fusion-hub/functions';
 import { getMjsFilePathsInDirectory } from 'fusion-hub/functions';
-import cli from 'fusion-hub/cli';
+import cli, { output } from 'fusion-hub/cli';
 import path from 'path';
 
 const { errors: cliErrors, properties: cliProperties } = cli;
@@ -15,6 +15,7 @@ export const command = {
   };
 
 export async function startCommandModule(input, joinedInput='', settings) {
+    const { log } = output;
     const { isCommandStartLogged = true } = settings;
     if (joinedInput.length==0) {
         cliErrors.noCommandSuppliedError();
@@ -52,9 +53,9 @@ export async function startCommandModule(input, joinedInput='', settings) {
                     if (result) {
                         cli.properties.commandMode = commandModule.command.id;
                         if (result===true)
-                            cli.output.log(`${capitalizeFirstLetter(startType)} ${commandModule.command.name} started.`);
+                            log(`${capitalizeFirstLetter(startType)} ${commandModule.command.name} started.`);
                         else
-                            cli.output.log(`${capitalizeFirstLetter(result)} started.`);
+                            log(`${capitalizeFirstLetter(result)} started.`);
                     }
                 } else {
                     cliErrors.invalidStartTypeError();

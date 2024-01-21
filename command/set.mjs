@@ -1,5 +1,5 @@
 import setup from "fusion-hub/setup";
-import { print } from "fusion-hub/cli";
+import { output } from "fusion-hub/cli";
 
 export const command = {
   id: "set",
@@ -11,6 +11,7 @@ export const command = {
 };
 
 export async function process({ input, joinedInput }) {
+  const { print } = output;
   if (input.length == 1 && input[0] == 'json') {
     print(`JSON:\n\n${JSON.stringify(setup.settings)}\n`);
     return;

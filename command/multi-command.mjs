@@ -1,5 +1,5 @@
 import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename } from 'fusion-hub/functions';
-import { error, log, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
+import cli, { properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
@@ -41,9 +41,8 @@ async function reloadModule(modulePath) {
     return module;
 }
 
-
-
 export async function process({input, joinedInput, settings = {}}) {
+    const { error, log } = cli.output;
     const filePath = input[0];
     if (input.length < 1 || filePath == '')
     {
@@ -152,7 +151,8 @@ export async function process({input, joinedInput, settings = {}}) {
         }
         const mcRunner = await fs.readFile('./mc-runner.mjs','utf-8');
         codeToEvalFinal = mcRunner.replace("/*${codeToEvalFinal}*/",codeToEvalFinal);
-        const debuggableFile = addPeriodToBasename(readFilePath);
+        let debuggableFile = addPeriodToBasename(readFilePath)
+        debuggableFile = `${debuggableFile}.mjs`.replace(/\.js\.mjs$/g,'.mjs');
         if (isLoggingMultiCommandFileContents)
             log(codeToEvalFinal)
         await fs.writeFile(debuggableFile,codeToEvalFinal);
@@ -171,6 +171,7 @@ export async function repeatCommand(additionalInfo)
 
 export async function evalCommand(commandIn, settings)
 {
+    const { error } = cli.output;
     if (typeof settings !== 'object' || settings === null) {
       error ("The evalCommand requires settings to be an object.");
       return;

@@ -32,6 +32,14 @@ export const warn =  (eventData, stamp, seperator) => event('warn', eventData, s
 export let write = (data) => process.stdout.write(data);
 export const print = (data) => write((data||='')+'\n');
 
+export const output = {
+  log,
+  error,
+  warn,
+  write,
+  print,
+}
+
 let rl;
 
 export const executeCommand = async (input, settings = {}, extensiveInputBuffer = null) => {
@@ -82,7 +90,7 @@ export const executeCommand = async (input, settings = {}, extensiveInputBuffer 
       else
       {
         if (err.code != 'ERR_MODULE_NOT_FOUND')
-          error(err);
+          output.error(err);
         else
           commandNotFoundError();
       }
@@ -101,7 +109,7 @@ async function init(initialInput) {
     await executeCommand(initialInput);
   }
   
-  print();
+  output.print();
 
   rl.setPrompt((properties.commandMode || '') + '> ');
   rl.prompt();
@@ -113,7 +121,7 @@ async function init(initialInput) {
       //await pushCliHistory(rl, properties.commandMode);
       await executeCommand(input);
     } catch (err) {
-      error(err);
+      output.error(err);
     }
     rl.setPrompt((properties.commandMode || '') + '> ');
     if (properties.isPromptRunning) {
@@ -142,14 +150,14 @@ async function init(initialInput) {
     }
   });
 }
-const commandNotFoundError = () => error("Command not found.");
-const noCommandSuppliedError = () => error("Unable to process command: No command supplied.");
-const invalidStartTypeError = () => error("Unable to process command: Not a valid start type.");
-const commandNotStartableError = () => error("Unable to process command: Not a valid command mode to start.");
-const noArgumentsAllowedError = () => error('Command takes no arguments.');
-const templateNotFoundError = () => error('Template not found');
-const noArgumentsSuppliedError = (minimum) => error(`Command takes ${minimum} argument${(minimum>1)?'s':''}.`);
-const argumentsLimitError = (limit) => error(`Command limited to ${limit} argument${(limit>1)?'s':''}.`);
+const commandNotFoundError = () => output.error("Command not found.");
+const noCommandSuppliedError = () => output.error("Unable to process command: No command supplied.");
+const invalidStartTypeError = () => output.error("Unable to process command: Not a valid start type.");
+const commandNotStartableError = () => output.error("Unable to process command: Not a valid command mode to start.");
+const noArgumentsAllowedError = () => output.error('Command takes no arguments.');
+const templateNotFoundError = () => output.error('Template not found');
+const noArgumentsSuppliedError = (minimum) => output.error(`Command takes ${minimum} argument${(minimum>1)?'s':''}.`);
+const argumentsLimitError = (limit) => output.error(`Command limited to ${limit} argument${(limit>1)?'s':''}.`);
 
 export default {
   properties,
@@ -164,11 +172,5 @@ export default {
     commandNotFoundError,
     templateNotFoundError,
   },
-  output: {
-    log,
-    error,
-    warn,
-    write,
-    print,
-  }
+  output
 }
