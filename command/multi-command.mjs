@@ -1,10 +1,11 @@
-import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename } from 'fusion-hub/functions';
-import { error, log, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
+import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename, getUidMdExplanation, generateUUID } from 'fusion-hub/functions';
+import cli, { properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
 import _fs from 'fs';
 import crypto from 'crypto';
 import json5 from 'json5';
+import setup from 'fusion-hub/setup'
 
 export const ai = {
     chatHistory: []
@@ -21,6 +22,7 @@ let lastCommand = null;
 let lastStopCommand = null;
 let lastVarType = null;
 let lastOutput = null;
+let lastSettings = null;
 
 export const command = {
     id: "multi-command",
@@ -31,7 +33,18 @@ export const command = {
     isStartable: false
   };
 
+async function reloadModule(modulePath) {
+    // Append a unique timestamp as a query string
+    const newPath = `${modulePath}?update=${Date.now()}`;
+
+    // Dynamically import the module with the new path
+    const module = await import(newPath);
+
+    return module;
+}
+
 export async function process({input, joinedInput, settings = {}}) {
+    const { error, log } = cli.output;
     const filePath = input[0];
     if (input.length < 1 || filePath == '')
     {
@@ -39,12 +52,17 @@ export async function process({input, joinedInput, settings = {}}) {
         return;
     }
     settings.aiChatSettings ||= {};
+    settings.aiChatSettings.chatHistory ||= [];
     settings.app ||= {};
     settings.app.input ||= '';
     settings.app.settings ||= {};
     const { mcFileContextDir = 'multi-command', historyContextDir = 'multi-command-history'  } = settings;
     const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app = {}, aiChatSettings = {}} = settings;
-
+    if (aiChatSettings.chatHistory && ai.chatHistory != aiChatSettings.chatHistory) {
+        ai.chatHistory.length=0;
+        ai.chatHistory.push(...aiChatSettings.chatHistory); 
+    }
+    aiChatSettings.chatHistory = ai.chatHistory;
     let readFilePath = await expandFilePath(filePath, {contextDir: mcFileContextDir})
     let commandText = await fs.readFile(readFilePath, 'utf-8');
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
@@ -107,15 +125,18 @@ export async function process({input, joinedInput, settings = {}}) {
             {
                 let prependAssignment = '';
                 let varType = 'null';
-                let matches = commandAndCode[0].match(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m);
+                let varTypeSettings = 'null';
+                let mcVarRegex = /^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*(:[ ]*(?<varTypeSettings>[_a-zA-Z0-9,]+)[ ]*)?\)\n?/m;
+                let matches = commandAndCode[0].match(mcVarRegex);
                 if (matches != null)
                 {
                     prependAssignment = matches.groups.varName ? ('let ' + matches.groups.varName + '=') : null;
                     varType = matches.groups.varType || null;
+                    varTypeSettings = matches.groups.varTypeSettings || null;
                 
-                    if (prependAssignment && varType && (varType == 'JSON' || varType == 'text'))
+                    if (prependAssignment && varType && /[a-zA-Z]{4,}/g.test(varType))
                     {
-                        commandAndCode[0] = commandAndCode[0].replace(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m, '')
+                        commandAndCode[0] = commandAndCode[0].replace(mcVarRegex, '')
                     }
                     else
                     {
@@ -123,9 +144,9 @@ export async function process({input, joinedInput, settings = {}}) {
                     }
                 }
                 const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
-                const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand });
-                codeToEvalFinal += `${prependAssignment}${codeBody};\n`; 
+                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, varTypeSettings: `${varTypeSettings}`, cliProperties}));
+                const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand, varTypeSettings });
+                codeToEvalFinal += `\n${prependAssignment}${codeBody};\n`; 
                 codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1]: '';
             }
             else if (commandAndCode.length > 2)
@@ -140,11 +161,12 @@ export async function process({input, joinedInput, settings = {}}) {
         }
         const mcRunner = await fs.readFile('./mc-runner.mjs','utf-8');
         codeToEvalFinal = mcRunner.replace("/*${codeToEvalFinal}*/",codeToEvalFinal);
-        const debuggableFile = addPeriodToBasename(readFilePath);
+        let debuggableFile = addPeriodToBasename(readFilePath)
+        debuggableFile = `${debuggableFile}.mjs`.replace(/\.js\.mjs$/g,'.mjs');
         if (isLoggingMultiCommandFileContents)
             log(codeToEvalFinal)
         await fs.writeFile(debuggableFile,codeToEvalFinal);
-        const importedCode = await import(debuggableFile);
+        const importedCode = await reloadModule(debuggableFile);
         if (isInterruptable) {
             importedCode.run(input, app, aiChatSettings);
         } else
@@ -154,11 +176,12 @@ export async function process({input, joinedInput, settings = {}}) {
 
 export async function repeatCommand(additionalInfo)
 {
-    return await evalCommand(null, {repeatQuery: true, additionalInfo});
+    return await evalCommand(null, { repeatQuery: true, additionalInfo});
 }
 
 export async function evalCommand(commandIn, settings)
 {
+    const { error } = cli.output;
     if (typeof settings !== 'object' || settings === null) {
       error ("The evalCommand requires settings to be an object.");
       return;
@@ -171,12 +194,7 @@ export async function evalCommand(commandIn, settings)
     settings.repeatQuery ||= false;
     settings.aiChatSettings ||= {};
     
-    const { repeatQuery } = settings;
-    const { isCommandStartLogged = false, aiChatSettings = {} } = settings;
-
-    Object.assign(aiChatSettings, settings.aiChatSettings);
-    aiChatSettings.isStreaming ||= false;
-    aiChatSettings.chatHistory = ai.chatHistory;
+    const { repeatQuery, varTypeSettings } = settings;
     let output = null;
 
     let command = commandIn;
@@ -190,17 +208,22 @@ export async function evalCommand(commandIn, settings)
         lastCommand = command;
         lastStopCommand = stopCommand;
         lastVarType = varType;
+        lastSettings = settings;
     }
     else
     {
-        //await sleep(1000);
-
-        
-        // contains kludge
-        command = lastCommand + "  Please double check your JSON.  Your last response contained malformed JSON.";
+        command = lastCommand;
         stopCommand = lastStopCommand;
         varType = lastVarType;
+        settings = lastSettings;
+        if (varType=='JSON')
+            command += "  Please double check your JSON.  Your last response contained malformed JSON.";
     }
+
+    const { isCommandStartLogged = false, aiChatSettings = {} } = settings;
+
+    Object.assign(aiChatSettings, settings.aiChatSettings);
+    aiChatSettings.isStreaming ||= false;
 
     if (command == stopCommand)
     {
@@ -209,10 +232,35 @@ export async function evalCommand(commandIn, settings)
     else 
     {   
         try {
-            output = await executeCommand(await eval(`(async    => \`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput)) ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}\`)()`), { isThrowing: true, aiChatSettings, isCommandStartLogged  });
+            if (varType=='UIDMD') {
+                const uuid = generateUUID();
+                command=command.replace(new RegExp(varTypeSettings,"g"),uuid);
+                if (ai.chatHistory.length>2) {
+                    ai.chatHistory.shift();
+                    ai.chatHistory.shift();
+                }
+                    ai.chatHistory.unshift({
+                        "role": "user",
+                        "parts": [{
+                            "text": getUidMdExplanation(uuid)
+                        }]
+                    }, {
+                        "role": "model",
+                        "parts": [{
+                            "text": `That's an interesting notation! I will be sure to use UIDMD notation for each code block, whenever you ask to provide it. For example, if I have a plain-text code block about whales I will say: 
+                        
+                            ***plaintext (${uuid}:whales)
+                            Did you know baby orcas are called calves?
+                            (${uuid}:whales)
+                            \"\n    }`
+                        }]
+                    })
+            }
+            const finalCommand = `${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput) && varType=='JSON') ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}`;
+            output = await executeCommand(finalCommand, { isThrowing: true, aiChatSettings, isCommandStartLogged  });
             if (varType!='null' && isString(output))
             {
-                output = await filterOutput(output, {typeOfVar: varType});
+                output = await filterOutput(output, {typeOfVar: varType, varTypeSettings});
             }
             if (!repeatQuery)
                 lastOutput=output;
@@ -223,7 +271,7 @@ export async function evalCommand(commandIn, settings)
                 output = await executeCommand(await eval(`(async () => \`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON out.  You must produce valid JSON.  Do not produce the same response as last time!!! ${isErrorMessage ? `\n\nUse the output from the JSON parser to help resolve the issue: ${output}` : ''}\`)()`), { isThrowing: true, aiChatSettings, isCommandStartLogged  });
                 if (varType && output)
                 {
-                    output = await filterOutput(output, {typeOfVar: varType});
+                    output = await filterOutput(output, {typeOfVar: varType, varTypeSettings});
                 }
             }
         } catch (err)
