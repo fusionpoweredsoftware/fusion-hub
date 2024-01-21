@@ -3,17 +3,32 @@
 //(?:\r?\n?\*/)
 //STOP
 //script:
+
 /*start chat-with-ai
 (translationData, JSON)
-This is not a conversation. I just want you to translate this text in quotes to Spanish: 
+This is not a conversation. I only want you to translate this text in quotes to Spanish: 
 "${app.input}"
 
-Please reply in JSON format. For example: {
+Please reply in JSON format. For example: 
+{
     english: "<words in quote>",
-    translationToSpanish: "<translated english>" 
+    translationToSpanish: "<translate english into spanish>",
+    isSpanishToEnglishTranslation: <boolean confirming that the english was translated into spanish>
+}
+
+So, for example, if a user says "hi" you would return:
+{
+    english: "hi",
+    translationToSpanish: "hola",
+    isSpanishToEnglishTranslation: true
 }
 */
-if (translationData==null)
-    print("Something went wrong. Try again later.");
+let attempts=0;
+const isInvalid = () => (translationData==null || !isString(translationData.translationToSpanish) || translationData.isSpanishToEnglishTranslation);
+while (isInvalid() && attempts++<5)
+    translationData=await repeatCommand();
+
+if (isInvalid())
+    print("Unable to translate.");
 else
-    print(translationData.translationToSpanish)
+    print(translationData.translationToSpanish);

@@ -21,6 +21,7 @@ let lastCommand = null;
 let lastStopCommand = null;
 let lastVarType = null;
 let lastOutput = null;
+let lastSettings = null;
 
 export const command = {
     id: "multi-command",
@@ -166,7 +167,7 @@ export async function process({input, joinedInput, settings = {}}) {
 
 export async function repeatCommand(additionalInfo)
 {
-    return await evalCommand(null, {repeatQuery: true, additionalInfo});
+    return await evalCommand(null, { repeatQuery: true, additionalInfo});
 }
 
 export async function evalCommand(commandIn, settings)
@@ -185,11 +186,6 @@ export async function evalCommand(commandIn, settings)
     settings.aiChatSettings ||= {};
     
     const { repeatQuery } = settings;
-    const { isCommandStartLogged = false, aiChatSettings = {} } = settings;
-
-    Object.assign(aiChatSettings, settings.aiChatSettings);
-    aiChatSettings.isStreaming ||= false;
-    aiChatSettings.chatHistory = ai.chatHistory;
     let output = null;
 
     let command = commandIn;
@@ -203,17 +199,21 @@ export async function evalCommand(commandIn, settings)
         lastCommand = command;
         lastStopCommand = stopCommand;
         lastVarType = varType;
+        lastSettings = settings;
     }
     else
     {
-        //await sleep(1000);
-
-        
-        // contains kludge
         command = lastCommand + "  Please double check your JSON.  Your last response contained malformed JSON.";
         stopCommand = lastStopCommand;
         varType = lastVarType;
+        settings = lastSettings;
     }
+
+    const { isCommandStartLogged = false, aiChatSettings = {} } = settings;
+
+    Object.assign(aiChatSettings, settings.aiChatSettings);
+    aiChatSettings.isStreaming ||= false;
+    aiChatSettings.chatHistory = ai.chatHistory;
 
     if (command == stopCommand)
     {
