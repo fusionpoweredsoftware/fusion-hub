@@ -19,7 +19,7 @@ export const command = {
 
 setup.settings['current-input-history-file-path'] ||= null;
 
-const { errors: cliErrors } = cli
+const cliErrors = cli.errors;
 const ai = await import('fusion-hub/ai/api/'+currentAiApiName);
 ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
 

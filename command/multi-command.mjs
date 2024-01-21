@@ -203,10 +203,12 @@ export async function evalCommand(commandIn, settings)
     }
     else
     {
-        command = lastCommand + "  Please double check your JSON.  Your last response contained malformed JSON.";
+        command = lastCommand;
         stopCommand = lastStopCommand;
         varType = lastVarType;
         settings = lastSettings;
+        if (varType=='JSON')
+            command += "  Please double check your JSON.  Your last response contained malformed JSON.";
     }
 
     const { isCommandStartLogged = false, aiChatSettings = {} } = settings;
@@ -222,7 +224,8 @@ export async function evalCommand(commandIn, settings)
     else 
     {   
         try {
-            output = await executeCommand(await eval(`(async    => \`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput)) ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}\`)()`), { isThrowing: true, aiChatSettings, isCommandStartLogged  });
+            const finalCommand = await eval(`(async    => \`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput) && varType=='JSON') ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}\`)()`);
+            output = await executeCommand(finalCommand, { isThrowing: true, aiChatSettings, isCommandStartLogged  });
             if (varType!='null' && isString(output))
             {
                 output = await filterOutput(output, {typeOfVar: varType});

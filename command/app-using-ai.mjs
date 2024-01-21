@@ -1,7 +1,7 @@
 import _fs from "fs";
 import { start as aiStart } from 'fusion-hub/command/chat-with-ai'
 import { process as mcProcess } from 'fusion-hub/command/multi-command'
-import { output, properties as cliProperties } from 'fusion-hub/cli';
+import cli, { output, properties as cliProperties } from 'fusion-hub/cli';
 
 import {
     currentAiApiName
@@ -29,7 +29,7 @@ setup.settings['current-app-config'] ||= {};
 const ai = await import('fusion-hub/ai/api/' + currentAiApiName);
 ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
 
-
+const cliErrors = cli.errors;
 const runApp = async (
     appFilePath,
     appInput,

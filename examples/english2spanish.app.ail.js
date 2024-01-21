@@ -4,27 +4,28 @@
 //STOP
 //script:
 
-/*start chat-with-ai
-(translationData, JSON)
+/*start chat-with-ai*/
+
+/*(translationData, JSON)
 This is not a conversation. I only want you to translate this text in quotes to Spanish: 
 "${app.input}"
 
 Please reply in JSON format. For example: 
 {
-    english: "<words in quote>",
-    translationToSpanish: "<translate english into spanish>",
-    isSpanishToEnglishTranslation: <boolean confirming that the english was translated into spanish>
+    "english": "<words in quote>",
+    "translationToSpanish": "<translate english into spanish>",
+    "isSpanishToEnglishTranslation": <boolean confirming that the english was translated into spanish>
 }
 
-So, for example, if a user says "hi" you would return:
+So, for example, if a user says "Hi! I know spanish!" you would return:
 {
-    english: "hi",
-    translationToSpanish: "hola",
-    isSpanishToEnglishTranslation: true
+    "english": "Hi! I know spanish!",
+    "translationToSpanish": "¡Hola! ¡Sé español!",
+    "isEnglishToSpanishTranslation": true
 }
 */
 let attempts=0;
-const isInvalid = () => (translationData==null || !isString(translationData.translationToSpanish) || translationData.isSpanishToEnglishTranslation);
+const isInvalid = () => (translationData==null || !isString(translationData.translationToSpanish) || !translationData.isEnglishToSpanishTranslation);
 while (isInvalid() && attempts++<5)
     translationData=await repeatCommand();
 
