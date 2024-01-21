@@ -14,6 +14,6 @@ Please reply in JSON format. For example: {
 }
 */
 if (translationData==null)
-    print("ERROR: Bad input detected. Try entering something simpler.");
+    print("Something went wrong. Try again later.");
 else
     print(translationData.translationToSpanish)
