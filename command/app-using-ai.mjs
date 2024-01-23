@@ -63,7 +63,7 @@ export async function start(appFilePath = null,
     }
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings = {});
+    const { sessionId = 0 } = (appSettings ||= {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings['current-app-config'][sessionId] ||={};
@@ -86,7 +86,7 @@ start.debug = async (appFilePath = null,
     }
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings = {});
+    const { sessionId = 0 } = (appSettings ||= {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings['current-app-config'][sessionId] ||={};
@@ -109,7 +109,7 @@ start.new = async (
     }
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings = {});
+    const { sessionId = 0 } = (appSettings ||= {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings['current-app-config'][sessionId] ||={};
@@ -129,7 +129,7 @@ start.old = async (
     parameterOverload = {}) => {
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings = {});
+    const { sessionId = 0 } = (appSettings ||= {});
     if (typeof parameterOverload !== 'object') {
         cliErrors.argumentsLimitError(3);
         return false;

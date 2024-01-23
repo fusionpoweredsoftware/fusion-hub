@@ -119,15 +119,18 @@ export async function process({input, joinedInput, settings = {}}) {
             {
                 let prependAssignment = '';
                 let varType = 'null';
-                let matches = commandAndCode[0].match(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m);
+                let varTypeSettings = 'null';
+                let mcVarRegex = /^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*(:[ ]*(?<varTypeSettings>[_a-zA-Z0-9,]+)[ ]*)?\)\n?/m;
+                let matches = commandAndCode[0].match(mcVarRegex);
                 if (matches != null)
                 {
                     prependAssignment = matches.groups.varName ? ('let ' + matches.groups.varName + '=') : null;
                     varType = matches.groups.varType || null;
+                    varTypeSettings = matches.groups.varTypeSettings || null;
                 
-                    if (prependAssignment && varType && (varType == 'JSON' || varType == 'text'))
+                    if (prependAssignment && varType && /[a-zA-Z]{4,}/g.test(varType))
                     {
-                        commandAndCode[0] = commandAndCode[0].replace(/^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*\)\n?/m, '')
+                        commandAndCode[0] = commandAndCode[0].replace(mcVarRegex, '')
                     }
                     else
                     {
@@ -135,8 +138,8 @@ export async function process({input, joinedInput, settings = {}}) {
                     }
                 }
                 const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
-                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, cliProperties}));
-                const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand });
+                const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, varTypeSettings: `${varTypeSettings}`, cliProperties}));
+                const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand, varTypeSettings });
                 codeToEvalFinal += `\n${prependAssignment}${codeBody};\n`; 
                 codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1]: '';
             }
@@ -185,7 +188,7 @@ export async function evalCommand(commandIn, settings)
     settings.repeatQuery ||= false;
     settings.aiChatSettings ||= {};
     
-    const { repeatQuery } = settings;
+    const { repeatQuery, varTypeSettings } = settings;
     let output = null;
 
     let command = commandIn;
@@ -228,7 +231,7 @@ export async function evalCommand(commandIn, settings)
             output = await executeCommand(finalCommand, { isThrowing: true, aiChatSettings, isCommandStartLogged  });
             if (varType!='null' && isString(output))
             {
-                output = await filterOutput(output, {typeOfVar: varType});
+                output = await filterOutput(output, {typeOfVar: varType, varTypeSettings});
             }
             if (!repeatQuery)
                 lastOutput=output;
@@ -239,7 +242,7 @@ export async function evalCommand(commandIn, settings)
                 output = await executeCommand(await eval(`(async () => \`${command.replace(/`/g, '\\`')}\nDo not leave any of the JSON out.  You must produce valid JSON.  Do not produce the same response as last time!!! ${isErrorMessage ? `\n\nUse the output from the JSON parser to help resolve the issue: ${output}` : ''}\`)()`), { isThrowing: true, aiChatSettings, isCommandStartLogged  });
                 if (varType && output)
                 {
-                    output = await filterOutput(output, {typeOfVar: varType});
+                    output = await filterOutput(output, {typeOfVar: varType, varTypeSettings});
                 }
             }
         } catch (err)

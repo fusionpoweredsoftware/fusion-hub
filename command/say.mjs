@@ -71,11 +71,11 @@ export async function process({ joinedInput, settings }) {
   let { gender = 'F', isSync = false } = settings;
   if (cleanInput.startsWith("sync: ")) {
     isSync = true;
-    cleanInput=joinedInput.replace(/^sync\: /g,'');
+    cleanInput=cleanInput.replace(/^sync\: /g,'');
   }
   if (cleanInput.startsWith("(male-voice) ")) {
     gender = 'D';
-    cleanInput=joinedInput.replace(/^\(male\-voice\) /g,'');
+    cleanInput=cleanInput.replace(/^\(male\-voice\) /g,'');
   }
   await synthesizeSpeech(cleanInput, `en-US-Journey-${gender}`, isSync).catch(error);  
 }

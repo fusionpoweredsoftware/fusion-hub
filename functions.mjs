@@ -1,11 +1,58 @@
 import os from "os";
 import fs from "fs/promises";
 import _fs from "fs";
-import path from "path";
+import path, { parse } from "path";
 import { cliRoot } from "fusion-hub/paths";
 import setup from "fusion-hub/setup";
 import json5 from "json5";
 let codeBlockCounter = 0;
+
+//If you have some troublesome JSON outputs, put Tricky in the front and specify
+//specific keys that you are only interested in.
+//By default, if you specify no keys then it will attempt to parse normally and return the error as a string if it failed.
+
+export function parseTrickyJSON(inputString, keys) {
+  try {
+      // First, try parsing as standard JSON
+      return json5.parse(inputString);
+  } catch (err) {
+      if (keys.length==0) {
+        return `Malformed JSON: ${err}`;
+      }
+      // If standard JSON parsing fails, use the custom parser
+      const result = {};
+      let lastIndex = 0;
+
+      keys.forEach(key => {
+          inputString=inputString.replace(new RegExp(`(")?${key}(")?( )*:`,"g"),key+":");
+          inputString=inputString.replace(new RegExp(`(')?${key}(')?( )*:`,"g"),key+":");
+          inputString=inputString.replace(new RegExp(`(\`)?${key}(\`)?( )*:`,"g"),key+":");
+          inputString=inputString.replace(new RegExp(`[\n,{]*( )*${key}:`,"g"),","+key+":");
+      });
+      keys.forEach(key => {
+          const keyIndex = inputString.indexOf(","+key + ":", lastIndex);
+          if (keyIndex !== -1) {
+              // Find the end index for the current key's value
+              let endIndex = inputString.length;
+              for (let nextKey of keys) {
+                  if (nextKey !== key) {
+                      const nextKeyIndex = inputString.indexOf(+","+nextKey + ":", keyIndex + key.length);
+                      if (nextKeyIndex !== -1 && nextKeyIndex < endIndex) {
+                          endIndex = nextKeyIndex;
+                      }
+                  }
+              }
+
+              // Extract and assign the value for the current key
+              const value = inputString.substring(keyIndex + key.length + 1, endIndex).trim();
+              result[key] = value;
+              lastIndex = keyIndex + key.length;
+          }
+      });
+
+      return result;
+  }
+}
 
 export function extractLambdaFunctionBody(func, substitutions) {
   const functionString = func.toString().trim();
@@ -24,12 +71,12 @@ export function extractLambdaFunctionBody(func, substitutions) {
     const regex = new RegExp(`\\$\\{${variableName}\\}`, "g");
     body = body.replace(regex, replacement);
   }
-
+  body = body.replace(/\`null\`/g, 'null');
   return body;
 }
 
 export function extractJson5Objects(inputString, settings) {
-  const { isEnglishOnly } = settings;
+  const { isEnglishOnly } = (settings ||= {});
   const jsonObjects = [];
   const lines = inputString.split('\n');
   let isInsideJsonBlock = false;
@@ -45,7 +92,12 @@ export function extractJson5Objects(inputString, settings) {
       try {
         let nonEnglishStrings = extractContinuousJapaneseAndChinese(currentJsonBlock);
         if (!isEnglishOnly || nonEnglishStrings.length==0) {
-          const parsedObject = json5.parse(currentJsonBlock);
+          let parsedObject;
+          if (settings.isTrickyJSON) {
+            parsedObject=parseTrickyJSON(currentJsonBlock,(settings.varTypeSettings||'').split(","));
+          } else {
+            parsedObject=json5.parse(currentJsonBlock);
+          }
           jsonObjects.push(parsedObject);
         } else {
           throw `Non-english Characters Detected: ${nonEnglishStrings}`;
@@ -58,6 +110,14 @@ export function extractJson5Objects(inputString, settings) {
       currentJsonBlock += line + '\n';
     }
   }
+  
+  if (jsonObjects.length==0) {
+    try {
+      return [parseTrickyJSON(inputString,(settings.varTypeSettings||'').split(","))];
+    } catch (err) {
+      return ["JSON was malformed."]
+    }
+  }
 
   return jsonObjects;
 }
@@ -65,8 +125,13 @@ export function extractJson5Objects(inputString, settings) {
 export const filterOutput = (output, filterSettings=null) => {
   if (output == null)
     return output
-
-  if (filterSettings.typeOfVar == 'JSON')
+  const { varTypeSettings } = filterSettings;
+  if (filterSettings.typeOfVar == 'TrickyJSON')
+  {
+    const json = extractJson5Objects(output, { isEnglishOnly: true, isTrickyJSON: true, varTypeSettings});
+    return (json.length > 0) ? json[0] : null;
+  } 
+  else if (filterSettings.typeOfVar == 'JSON')
   {
     const json = extractJson5Objects(output, { isEnglishOnly: true });
     return (json.length > 0) ? json[0] : null;
