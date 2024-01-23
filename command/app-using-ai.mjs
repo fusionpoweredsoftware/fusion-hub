@@ -66,6 +66,7 @@ export async function start(appFilePath = null,
     const { sessionId = 0 } = (appSettings = {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
+    setup.settings['current-app-config'][sessionId] ||={};
     setup.settings['current-app-config'][sessionId] = {
         appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
         appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),

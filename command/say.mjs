@@ -11,7 +11,7 @@ export const command = {
   id: "say",
   name: "say",
   description: "Converts text to speech.",
-  examples: `say hello there world!`,
+  examples: `say sync: (male-voice) hello there world!`,
   isInputCaseSensitive: false,
   isStartable: false,
 };
@@ -21,8 +21,21 @@ function md5(data) {
 }
 
 const client = new textToSpeech.TextToSpeechClient();
+const player = play({});
+
+function playSound(outputFile) {
+    return new Promise((resolve, reject) => {
+        player.play(outputFile, (err) => {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
  
-async function synthesizeSpeech(text, name) {
+async function synthesizeSpeech(text, name, isSync=false) {
 
   const outputFile = await expandFilePath(`~~~/output-${md5(text)}-${name}.mp3`, { contextDir: "tts"});
   const createFile = async () => {
@@ -45,17 +58,24 @@ async function synthesizeSpeech(text, name) {
   await createFile();
   if ((_fs.statSync(outputFile)) < 1024)
     await createFile();
-  const player = play({});
-  player.play(outputFile, (err) => {
-    if (err) {
-      error('Error occurred:', err);
-      return;
-    }
-  });
+  if (isSync) {
+    await playSound(outputFile);
+  } else {
+    playSound(outputFile);
+  }
 }
 
 export async function process({ joinedInput, settings }) {
   const { error } = output;
-  const { gender = 'F' } = settings;
-  synthesizeSpeech(joinedInput, `en-US-Journey-${gender}`).catch(error);  
+  let cleanInput = joinedInput;
+  let { gender = 'F', isSync = false } = settings;
+  if (cleanInput.startsWith("sync: ")) {
+    isSync = true;
+    cleanInput=joinedInput.replace(/^sync\: /g,'');
+  }
+  if (cleanInput.startsWith("(male-voice) ")) {
+    gender = 'D';
+    cleanInput=joinedInput.replace(/^\(male\-voice\) /g,'');
+  }
+  await synthesizeSpeech(cleanInput, `en-US-Journey-${gender}`, isSync).catch(error);  
 }
