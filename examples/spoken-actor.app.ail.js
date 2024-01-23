@@ -6,20 +6,22 @@
 //script:
 async function getActor (notes) {
 
-    /*(actor,TrickyJSON:spokenResponse,nonSpokenResponse) chat-with-ai
+    /*(actor,TrickyJSON:shortSpokenResponse,nonSpokenResponse) chat-with-ai
     Provide the response of ${person} in the following form:
     {
         "biosignature": "${biosignature}"
         "person": "${person}",
         "input": "${app.input}",
-        "spokenResponse": "<put ${person}'s response here>",
+        "shortSpokenResponse": "<put ${person}'s response here>",
+        "nonSpokenResponseBaseFilename": "<a filename where the nonSpokenResponse is stored (response.md by default)>",
+        "nonSpokenResponseDirectory": "<a directory where the nonSpokenResponse is stored ("./" by default)>",
+        "isNonSpokenResponseForWorkspace": false,
         "nonSpokenResponse": "<code or anything that is not native to English goes here>",
-        "isNonSpokenResponseForWorkspace": false
     }
 
     Where input, provided as the known given variable in the JSON structure above, is what was said to the actor.
     
-    spokenResponse is data that will be passed to a TTS, so do not ever put any code or any non-English characters in that area!
+    shortSpokenResponse is data that will be passed to a TTS, so do not ever put any code or any non-English characters in that area!
 
     nonSpokenResponse is where you would put code or not native to English using MD (markdown) format.
 
@@ -37,13 +39,17 @@ async function getActor (notes) {
 
     Where "..." signifies the expansion of the json array as needed, to provide all replacement code blocks to effeciently express the changes described in your response.
 
+    IMPORTANT: Whenever there are differences or changes being described, use this diff form to describe the changes rather than providing the entire nonSpokenResponse.
+
+    Also, keep your spoken responses to a minimum. Try to put as much information in your nonSpokenResponse where possible.
+
     ${notes}
     */
     
     return actor;
 }
 
-let { person = "VIDEO", gender = "female", nonSpokenResponseFile = "response.md", notes = '' } = app.settings;
+let { person = "VIDEO", gender = "female", defaultNonSpokenResponseFile = "response.md", workspaceName='./workspace/',notes = '' } = app.settings;
 let { biosignature = null } = app.settings;
 let voiceType = '';
 
@@ -58,11 +64,23 @@ if (person === "VIDEO" && biosignature==null) {
 
 if (gender=="male")
     voiceType="(male-voice) ";
-
+if (!_fs.existsSync(workspaceName)) {
+    _fs.mkdirSync(workspaceName);
+}
 
 const actor = await getActor(notes);
-if (actor.spokenResponse) {
-    const speakableResponse = actor.spokenResponse.replace(/[^a-zA-Z0-9:;&\.?!\(\)\[\]\"\'\{\}\/\-\n ]/g,'').split(/\n\n/g);
+
+if (isObject(actor) && isString(actor.shortSpokenResponse)) {
+    let { nonSpokenResponseBaseFilename } = actor;
+    nonSpokenResponseBaseFilename ||= 'readme.md';
+    if (isString(actor.nonSpokenResponse)) {
+        await fs.writeFile(defaultNonSpokenResponseFile, actor.nonSpokenResponse);
+        await fs.writeFile(workspaceName+(path.basename(nonSpokenResponseBaseFilename) || defaultNonSpokenResponseFile), actor.nonSpokenResponse);
+    }
+    else if (isObject(actor.nonSpokenResponse)) {
+        await fs.writeFile(workspaceName+(path.basename(nonSpokenResponseBaseFilename) || defaultNonSpokenResponseFile), '```json'+json5.stringify(actor.nonSpokenResponse)+'```');
+    }
+    const speakableResponse = actor.shortSpokenResponse.replace(/[^a-zA-Z0-9:;&\.?!\(\)\[\]\"\'\{\}\/\-\n ]/g,'').replace(/[-]/g,' - ').split(/\n\n/g);
     for (let i = 0; i < speakableResponse.length; i++) {
         print((i == 0 ? '\nAI: ' : '') + speakableResponse[i]+"\n")
         /*say sync: ${voiceType}${speakableResponse[i]}*/
@@ -70,11 +88,6 @@ if (actor.spokenResponse) {
 } else {
     error("Error processing response.")
 }
-if (isString(actor.nonSpokenResponse)) {
-    await fs.writeFile(nonSpokenResponseFile, actor.nonSpokenResponse);
-}
-else if (isObject(actor.nonSpokenResponse)) {
-    await fs.writeFile(nonSpokenResponseFile, '```json'+json5.stringify(actor.nonSpokenResponse)+'```');
-}
+
 /*STOP*/
 /*start app-using-ai*/
