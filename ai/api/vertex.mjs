@@ -173,7 +173,7 @@ export const chat = async (textInput, {
 
     if (isStreaming)
     {
-      await chatStdout.write("\nai> ");
+      //await chatStdout.write("\nai> ");
       for await (const item of streamResult.stream) {
         try {
           const len = item.candidates[0].content.parts.length;

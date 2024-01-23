@@ -17,8 +17,11 @@
   "license": "ISC",
   "dependencies": {
     "@google-cloud/aiplatform": "^3.9.0",
+    "@google-cloud/speech": "^6.1.0",
+    "@google-cloud/text-to-speech": "^5.0.2",
     "@google-cloud/vertexai": "^0.2.0",
     "ai": "./ai",
-    "json5": "^2.2.3"
+    "json5": "^2.2.3",
+    "play-sound": "^1.1.6"
   }
 }

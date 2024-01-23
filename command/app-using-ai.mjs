@@ -7,7 +7,8 @@ import {
     currentAiApiName
 } from "fusion-hub/variables";
 import {
-    getArgs
+    getArgs,
+    isString
 } from "fusion-hub/functions"
 import {
     getCurrentChatHistoryFilePath
@@ -24,7 +25,7 @@ export const command = {
     isStartable: true
 };
 
-setup.settings['current-app-config'] ||= {};
+setup.settings['current-app-config'] = {};
 
 const ai = await import('fusion-hub/ai/api/' + currentAiApiName);
 ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
@@ -60,11 +61,14 @@ export async function start(appFilePath = null,
         cliErrors.argumentsLimitError(2);
         return false;
     }
+    if (isString(appSettings))
+        appSettings = json5.parse(appSettings);
+    const { sessionId = 0 } = (appSettings = {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings['current-app-config'] = {
-        appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
-        appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
+    setup.settings['current-app-config'][sessionId] = {
+        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
         isDebugging: false
     };
     await setup.pushSetupSettings();
@@ -79,12 +83,16 @@ start.debug = async (appFilePath = null,
         cliErrors.noArgumentsAllowedError();
         return false;
     }
+    if (isString(appSettings))
+        appSettings = json5.parse(appSettings);
+    const { sessionId = 0 } = (appSettings = {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings['current-app-config'] = {
-        appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
-        appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
-        isDebugging: true
+    setup.settings['current-app-config'][sessionId] ||={};
+    setup.settings['current-app-config'][sessionId] = {
+        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
+        isDebugging: false
     };
     return await aiStart();
 }
@@ -98,12 +106,16 @@ start.new = async (
         cliErrors.argumentsLimitError(3);
         return false;
     }
+    if (isString(appSettings))
+        appSettings = json5.parse(appSettings);
+    const { sessionId = 0 } = (appSettings = {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings['current-app-config'] = {
-        appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
-        appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
-        isDebugging: setup.settings["current-app-config"].isDebugging || false
+    setup.settings['current-app-config'][sessionId] ||={};
+    setup.settings['current-app-config'][sessionId] = {
+        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
+        isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
     };
     await setup.pushSetupSettings();
     return await aiStart.new(historyJsonFilePath);
@@ -114,14 +126,18 @@ start.old = async (
     appSettings = null,
     historyJsonFilePath = null,
     parameterOverload = {}) => {
+    if (isString(appSettings))
+        appSettings = json5.parse(appSettings);
+    const { sessionId = 0 } = (appSettings = {});
     if (typeof parameterOverload !== 'object') {
         cliErrors.argumentsLimitError(3);
         return false;
     }
-    setup.settings['current-app-config'] = {
-        appFilePath: appFilePath || setup.settings['current-app-config'].appFilePath || null,
-        appSettings: json5.parse(appSettings) || setup.settings['current-app-config'].appSettings || {},
-        isDebugging: setup.settings["current-app-config"].isDebugging || false
+    setup.settings['current-app-config'][sessionId] ||={};
+    setup.settings['current-app-config'][sessionId] = {
+        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
+        isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
     };
     await setup.pushSetupSettings();
     return await aiStart.new(historyJsonFilePath, undefined, startType);
@@ -146,26 +162,27 @@ export async function process({
         return;
     }
     queue[sessionId] = 1;
-    setup.settings['current-app-config'] = {
-            appFilePath: setup.settings['current-app-config'].appFilePath || null,
-            appSettings: setup.settings['current-app-config'].appSettings || {},
-            isDebugging: setup.settings["current-app-config"].isDebugging || false
+    setup.settings['current-app-config'][sessionId] ||={};
+    setup.settings['current-app-config'][sessionId] = {
+            appFilePath: setup.settings['current-app-config'][sessionId].appFilePath || null,
+            appSettings: setup.settings['current-app-config'][sessionId].appSettings || {},
+            isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
     };
 
-    const appConfig = setup.settings['current-app-config'];
+    const appConfig = setup.settings['current-app-config'][sessionId];
     const multiCommandSettings = JSON.parse(JSON.stringify(appConfig));
-    const { isDebugging } = setup.settings['current-app-config'];
+    const { isDebugging } = setup.settings['current-app-config'][sessionId];
     
     multiCommandSettings.aiChatSettings ||= {};
     multiCommandSettings.aiChatSettings.sessionId = sessionId;
     multiCommandSettings.app ||= {};
     multiCommandSettings.app.input = appInput || '';
     multiCommandSettings.app.settings = multiCommandSettings.appSettings || {}; 
+    delete multiCommandSettings.appSettings;  //no longer needed: moved to multiCommandSettings.app.settings
     multiCommandSettings.contextDir ||= 'app';
-    delete multiCommandSettings.appSettings;
     multiCommandSettings.app.filePath = multiCommandSettings.appFilePath;
     delete multiCommandSettings.appFilePath;
-    Object.assign(multiCommandSettings.app, settings);
+    Object.assign(multiCommandSettings.app, settings); //no longer need: moved to multiCommandSettings.app.filePath
     cliProperties.commandMode = null;
     
     await runApp(appConfig.appFilePath, appInput, multiCommandSettings, isDebugging);
