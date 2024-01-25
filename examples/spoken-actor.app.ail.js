@@ -13,9 +13,9 @@ async function getActor (notes) {
         "person": "${person}",
         "input": "${app.input}",
         "shortSpokenResponse": "<put ${person}'s response here>",
-        "nonSpokenResponseBaseFilename": "<a filename where the nonSpokenResponse is stored (response.md by default)>",
-        "nonSpokenResponseDirectory": "<a directory where the nonSpokenResponse is stored ("./" by default)>",
-        "isNonSpokenResponseForWorkspace": false,
+        "nonSpokenResponseBaseFilename": "<base filename where the nonSpokenResponse is stored (response.md by default)>",
+        "nonSpokenResponseDirectory": "<directory where the nonSpokenResponse is stored ("./" by default)>",
+        "isNonSpokenResponseInDiffForm": false,
         "nonSpokenResponse": "<code or anything that is not native to English goes here>",
     }
 
@@ -25,14 +25,14 @@ async function getActor (notes) {
 
     nonSpokenResponse is where you would put code or not native to English using MD (markdown) format.
 
-    isNonSpokenResponseForWorkspace indicates whether or not the response is meant to go into a workspace, where changes are applied to existing sources of data. In
-    order to return the nonSpokenResponseForWorkspace as true, your nonSpokenResponse must be in diff form which looks like this:
+    isNonSpokenResponseInDiffForm indicates that the non-spoken response is in diff form. In order to return the isNonSpokenResponseInDiffForm as true, 
+    your nonSpokenResponse must looks like this:
 
     ```json
     [
-        {"codeBlockSource": "<first chunk of code that is getting replaced>", "codeBlockReplacement": "<the first chunk of code that will replace the code block source>"},
-        {"codeBlockSource": "<second chunk of code that is getting replaced>", "codeBlockReplacement": "<the second chunk of code that will replace the code block source>"},
-        {"codeBlockSource": "<third chunk of code that is getting replaced>", "codeBlockReplacement": "<the third chunk of code that will replace the code block source>"},
+        {"baseFilename": "<base filename of code block being replaced>", "codeBlockSource": "<first chunk of code that is getting replaced>", "codeBlockReplacement": "<the first chunk of code that will replace the code block source>"},
+        {"baseFilename": "<base filename of code block being replaced>", "codeBlockSource": "<second chunk of code that is getting replaced>", "codeBlockReplacement": "<the second chunk of code that will replace the code block source>"},
+        {"baseFilename": "<base filename of code block being replaced>", "codeBlockSource": "<third chunk of code that is getting replaced>", "codeBlockReplacement": "<the third chunk of code that will replace the code block source>"},
         ...
     ]  
     ```
@@ -64,23 +64,42 @@ if (person === "VIDEO" && biosignature==null) {
 
 if (gender=="male")
     voiceType="(male-voice) ";
-if (!_fs.existsSync(workspaceName)) {
-    _fs.mkdirSync(workspaceName);
-}
 
 const actor = await getActor(notes);
 
 if (isObject(actor) && isString(actor.shortSpokenResponse)) {
-    let { nonSpokenResponseBaseFilename } = actor;
-    nonSpokenResponseBaseFilename ||= 'readme.md';
-    if (isString(actor.nonSpokenResponse)) {
-        await fs.writeFile(defaultNonSpokenResponseFile, actor.nonSpokenResponse);
+
+    let { nonSpokenResponse, nonSpokenResponseDirectory, nonSpokenResponseBaseFilename, isNonSpokenResponseInDiffForm } = actor;
+    if (nonSpokenResponseDirectory && !_fs.existsSync(workspaceName+nonSpokenResponseDirectory.replace(/^\.\//g,''))) {
+        _fs.mkDirSync(workspaceName, { recursive: true });
+    }
+    if (nonSpokenResponseBaseFilename) {
+        nonSpokenResponseBaseFilename ||= defaultNonSpokenResponseFile;
+        nonSpokenResponseBaseFilename = path.join(workspaceName+nonSpokenResponseDirectory.replace(/^\.\//g,''),path.basename(nonSpokenResponseBaseFilename) || defaultNonSpokenResponseFile);
+    }
+    if (isString(nonSpokenResponse)) {
         await fs.writeFile(workspaceName+(path.basename(nonSpokenResponseBaseFilename) || defaultNonSpokenResponseFile), actor.nonSpokenResponse);
+        if (isNonSpokenResponseInDiffForm) {
+            nonSpokenResponse = extractJson5Objects(nonSpokenResponse);
+        }
     }
-    else if (isObject(actor.nonSpokenResponse)) {
-        await fs.writeFile(workspaceName+(path.basename(nonSpokenResponseBaseFilename) || defaultNonSpokenResponseFile), '```json'+json5.stringify(actor.nonSpokenResponse)+'```');
+    else if (isObject(nonSpokenResponse) || Array.isArray(actor.nonSpokenResponse)) {
+        await fs.writeFile(nonSpokenResponseBaseFilename , '```json\n'+json5.stringify(actor.nonSpokenResponse)+'\n```');
     }
-    const speakableResponse = actor.shortSpokenResponse.replace(/[^a-zA-Z0-9:;&\.?!\(\)\[\]\"\'\{\}\/\-\n ]/g,'').replace(/[-]/g,' - ').split(/\n\n/g);
+
+    if (Array.isArray(actor.nonSpokenResponse) && isNonSpokenResponseInDiffForm) {
+        for (let i = 0; i < nonSpokenResponse.length; i++) {
+            let { baseFilename, codeBlockSource, codeBlockReplacement } = actor.nonSpokenResponse;
+            if (baseFilename && codeBlockSource && codeBlockReplacement) {
+                baseFilename = path.join(workspaceName+nonSpokenResponseDirectory.replace(/^\.\//g,''),path.basename(baseFilename) || defaultNonSpokenResponseFile);
+                const fileData = await fs.readFile(filename, 'utf-8');
+                fileData=fileData.replace(nonSpokenResponse[i].codeBlockSource,nonSpokenResponse[i].codeBlockReplacement);
+                await fs.writeFile(baseFilename, fileData);
+            }
+        }
+    }
+
+    const speakableResponse = actor.shortSpokenResponse.replace(/[^a-zA-Z0-9:;&\.?!\(\)\[\]\"\'\{\}\/\-\n ]/g,'').replace(/[-]/g,' - ').replace(/(^|[^A-Za-z])([A-Z])([A-Z])([A-Z])($|[^A-Za-z])/g,'$1$2.$3.$4.$5').split(/\n\n/g);
     for (let i = 0; i < speakableResponse.length; i++) {
         print((i == 0 ? '\nAI: ' : '') + speakableResponse[i]+"\n")
         /*say sync: ${voiceType}${speakableResponse[i]}*/

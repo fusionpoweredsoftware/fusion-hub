@@ -51,6 +51,7 @@ export async function process({input, joinedInput, settings = {}}) {
         return;
     }
     settings.aiChatSettings ||= {};
+    settings.aiChatSettings.chatHistory ||= [];
     settings.app ||= {};
     settings.app.input ||= '';
     settings.app.settings ||= {};
@@ -218,6 +219,10 @@ export async function evalCommand(commandIn, settings)
 
     Object.assign(aiChatSettings, settings.aiChatSettings);
     aiChatSettings.isStreaming ||= false;
+    if (aiChatSettings.chatHistory) {
+        ai.chatHistory.length=0;
+        ai.chatHistory.push(...aiChatSettings.chatHistory); 
+    }
     aiChatSettings.chatHistory = ai.chatHistory;
 
     if (command == stopCommand)

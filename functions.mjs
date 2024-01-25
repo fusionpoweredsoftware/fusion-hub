@@ -84,7 +84,7 @@ export function extractJson5Objects(inputString, settings) {
 
   for (let l = 0; l < lines.length; l++) {
     let line = lines[l];
-    if (line.trim().toLowerCase().match(/```( )*(json)?/g) && lines[l+1] && lines[l+1].trim().startsWith('{')) {
+    if (line.trim().toLowerCase().match(/```( )*(json)?/g) && lines[l+1] && /[\{\[]/g.test(lines[l+1].trim())) {
       isInsideJsonBlock = true;
       currentJsonBlock = '';
     } else if (isInsideJsonBlock && line.trim() === '```') {

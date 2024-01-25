@@ -38,7 +38,8 @@ const runApp = async (
     isDebugging=false
   ) => {
     if (!isDebugging) {
-        multiCommandSettings.aiChatSettings = { chatStdout: { write: () => {} } };
+        multiCommandSettings.aiChatSettings ||= {};
+        multiCommandSettings.aiChatSettings.chatStdout ||= { write: () => {} };
         multiCommandSettings.isLoggingMultiCommandFileContents = (multiCommandSettings.isLoggingMultiCommandFileContents!=undefined)  || false;
         multiCommandSettings.isInterruptable = (multiCommandSettings.isInterruptable!=undefined) || false;
         multiCommandSettings.isVerbose = false;
@@ -119,7 +120,10 @@ start.new = async (
         isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
     };
     await setup.pushSetupSettings();
-    return await aiStart.new(historyJsonFilePath);
+    const result = await aiStart.new(historyJsonFilePath);
+    setup.settings['current-app-config'][sessionId].aiChatSettings ||= {};
+    setup.settings['current-app-config'][sessionId].aiChatSettings.chatHistory = [];
+    return result;
 }
 
 start.old = async (
@@ -163,8 +167,8 @@ export async function process({
         return;
     }
     queue[sessionId] = 1;
-    setup.settings['current-app-config'][sessionId] ||={};
-    setup.settings['current-app-config'][sessionId] = {
+    setup.settings['current-app-config'][sessionId] ||= {};
+    setup.settings['current-app-config'][sessionId] ||= {
             appFilePath: setup.settings['current-app-config'][sessionId].appFilePath || null,
             appSettings: setup.settings['current-app-config'][sessionId].appSettings || {},
             isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
