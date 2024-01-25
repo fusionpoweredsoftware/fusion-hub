@@ -49,7 +49,13 @@ async function getActor (notes) {
     return actor;
 }
 
-let { person = "VIDEO", gender = "female", defaultNonSpokenResponseFile = "response.md", workspaceName='./workspace/',notes = '' } = app.settings;
+function getRandomFillerWord() {
+    const fillerWords = ["Well!", "So...", "Hmm...", "Okay...", ""];
+    const randomIndex = Math.floor(Math.random() * fillerWords.length);
+    return fillerWords[randomIndex];
+}
+
+let { person = "VIDEO", gender = "female", useFillerWords=true, defaultNonSpokenResponseFile = "response.md", workspaceName='./workspace/',notes = '' } = app.settings;
 let { biosignature = null } = app.settings;
 let voiceType = '';
 
@@ -65,8 +71,17 @@ if (person === "VIDEO" && biosignature==null) {
 if (gender=="male")
     voiceType="(male-voice) ";
 
+if (useFillerWords==true && ai.chatHistory.length>0) {
+        /*say ${voiceType}Give me a moment to think about that...*/
+}
 const actor = await getActor(notes);
-
+if (useFillerWords==true && ai.chatHistory.length>0) {
+    const fillerWord = getRandomFillerWord();
+    if (fillerWord) {
+        /*say sync: ${voiceType}${fillerWord}*/
+    }
+}
+print("\nResponding...\n")
 if (isObject(actor) && isString(actor.shortSpokenResponse)) {
 
     let { nonSpokenResponse, nonSpokenResponseDirectory, nonSpokenResponseBaseFilename, isNonSpokenResponseInDiffForm } = actor;

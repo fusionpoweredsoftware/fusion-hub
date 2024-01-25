@@ -5,6 +5,7 @@ import fs from 'fs/promises';
 import _fs from 'fs';
 import crypto from 'crypto';
 import json5 from 'json5';
+import setup from 'fusion-hub/setup'
 
 export const ai = {
     chatHistory: []
@@ -57,7 +58,11 @@ export async function process({input, joinedInput, settings = {}}) {
     settings.app.settings ||= {};
     const { mcFileContextDir = 'multi-command', historyContextDir = 'multi-command-history'  } = settings;
     const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app = {}, aiChatSettings = {}} = settings;
-
+    if (aiChatSettings.chatHistory && ai.chatHistory != aiChatSettings.chatHistory) {
+        ai.chatHistory.length=0;
+        ai.chatHistory.push(...aiChatSettings.chatHistory); 
+    }
+    aiChatSettings.chatHistory = ai.chatHistory;
     let readFilePath = await expandFilePath(filePath, {contextDir: mcFileContextDir})
     let commandText = await fs.readFile(readFilePath, 'utf-8');
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
@@ -189,7 +194,8 @@ export async function evalCommand(commandIn, settings)
     settings.repeatQuery ||= false;
     settings.aiChatSettings ||= {};
     
-    const { repeatQuery, varTypeSettings } = settings;
+    const { repeatQuery, varTypeSettings } = 
+    settings;
     let output = null;
 
     let command = commandIn;
@@ -219,11 +225,6 @@ export async function evalCommand(commandIn, settings)
 
     Object.assign(aiChatSettings, settings.aiChatSettings);
     aiChatSettings.isStreaming ||= false;
-    if (aiChatSettings.chatHistory) {
-        ai.chatHistory.length=0;
-        ai.chatHistory.push(...aiChatSettings.chatHistory); 
-    }
-    aiChatSettings.chatHistory = ai.chatHistory;
 
     if (command == stopCommand)
     {

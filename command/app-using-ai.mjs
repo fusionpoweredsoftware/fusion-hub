@@ -68,11 +68,11 @@ export async function start(appFilePath = null,
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings['current-app-config'][sessionId] ||={};
-    setup.settings['current-app-config'][sessionId] = {
+    Object.assign(setup.settings['current-app-config'][sessionId], {
         appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
         appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
         isDebugging: false
-    };
+    });
     await setup.pushSetupSettings();
     return await aiStart();
 }
@@ -91,11 +91,11 @@ start.debug = async (appFilePath = null,
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings['current-app-config'][sessionId] ||={};
-    setup.settings['current-app-config'][sessionId] = {
+    Object.assign(setup.settings['current-app-config'][sessionId], {
         appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
         appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
         isDebugging: false
-    };
+    });
     return await aiStart();
 }
 
@@ -178,6 +178,7 @@ export async function process({
     const multiCommandSettings = JSON.parse(JSON.stringify(appConfig));
     const { isDebugging } = setup.settings['current-app-config'][sessionId];
     
+    multiCommandSettings.aiChatSettings=setup.settings['current-app-config'][sessionId].aiChatSettings
     multiCommandSettings.aiChatSettings ||= {};
     multiCommandSettings.aiChatSettings.sessionId = sessionId;
     multiCommandSettings.app ||= {};
