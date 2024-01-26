@@ -1,4 +1,5 @@
 import _fs from "fs";
+import fs from "fs/promises";
 import { start as aiStart } from 'fusion-hub/command/chat-with-ai'
 import { process as mcProcess } from 'fusion-hub/command/multi-command'
 import cli, { output, properties as cliProperties } from 'fusion-hub/cli';
@@ -8,7 +9,8 @@ import {
 } from "fusion-hub/variables";
 import {
     getArgs,
-    isString
+    isString,
+    expandFilePath
 } from "fusion-hub/functions"
 import {
     getCurrentChatHistoryFilePath
@@ -138,6 +140,8 @@ start.old = async (
         cliErrors.argumentsLimitError(3);
         return false;
     }
+    if (appFilePath)
+        appFilePath+=".app.ail.js";
     setup.settings['current-app-config'][sessionId] ||={};
     setup.settings['current-app-config'][sessionId] = {
         appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
@@ -145,7 +149,12 @@ start.old = async (
         isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
     };
     await setup.pushSetupSettings();
-    return await aiStart.new(historyJsonFilePath, undefined, startType);
+    const result = await aiStart.old(historyJsonFilePath);
+    setup.settings['current-app-config'][sessionId].aiChatSettings ||= {};
+    const historyFilePath = await expandFilePath(historyJsonFilePath, {contextDir: "histories"});
+    const chatHistoryToJSON = JSON.parse(await fs.readFile(historyFilePath, 'utf-8'));
+    setup.settings['current-app-config'][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
+    return result;
 }
 
 export const {
