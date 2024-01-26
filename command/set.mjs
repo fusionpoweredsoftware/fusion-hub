@@ -4,7 +4,7 @@ import { output } from "fusion-hub/cli";
 export const command = {
   id: "set",
   name: "set",
-  description: "Set a variables for commands to use, or see what variables are currently set.",
+  description: "Set a variables for commands to use, or see what is currently set.",
   examples: `set (<k1> as <v1>,<k2> as <v2>|json(+)? <json>)`,
   isInputCaseSensitive: true,
   isStartable: false,
