@@ -194,8 +194,7 @@ export async function evalCommand(commandIn, settings)
     settings.repeatQuery ||= false;
     settings.aiChatSettings ||= {};
     
-    const { repeatQuery, varTypeSettings } = 
-    settings;
+    const { repeatQuery, varTypeSettings } = settings;
     let output = null;
 
     let command = commandIn;
@@ -233,7 +232,7 @@ export async function evalCommand(commandIn, settings)
     else 
     {   
         try {
-            const finalCommand = await eval(`(async    => \`${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput) && varType=='JSON') ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}\`)()`);
+            const finalCommand = `${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput) && varType=='JSON') ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}`;
             output = await executeCommand(finalCommand, { isThrowing: true, aiChatSettings, isCommandStartLogged  });
             if (varType!='null' && isString(output))
             {
