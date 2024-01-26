@@ -27,7 +27,7 @@ export const command = {
     isStartable: true
 };
 
-setup.settings['current-app-config'] = {};
+setup.settings[".current-app-config"] = {};
 
 const ai = await import('fusion-hub/ai/api/' + currentAiApiName);
 ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
@@ -69,10 +69,10 @@ export async function start(appFilePath = null,
     const { sessionId = 0 } = (appSettings ||= {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings['current-app-config'][sessionId] ||={};
-    Object.assign(setup.settings['current-app-config'][sessionId], {
-        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
-        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
+    setup.settings[".current-app-config"][sessionId] ||={};
+    Object.assign(setup.settings[".current-app-config"][sessionId], {
+        appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
         isDebugging: false
     });
     await setup.pushSetupSettings();
@@ -92,10 +92,10 @@ start.debug = async (appFilePath = null,
     const { sessionId = 0 } = (appSettings ||= {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings['current-app-config'][sessionId] ||={};
-    Object.assign(setup.settings['current-app-config'][sessionId], {
-        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
-        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
+    setup.settings[".current-app-config"][sessionId] ||={};
+    Object.assign(setup.settings[".current-app-config"][sessionId], {
+        appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
         isDebugging: false
     });
     return await aiStart();
@@ -115,16 +115,16 @@ start.new = async (
     const { sessionId = 0 } = (appSettings ||= {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings['current-app-config'][sessionId] ||={};
-    setup.settings['current-app-config'][sessionId] = {
-        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
-        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
-        isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
+    setup.settings[".current-app-config"][sessionId] ||={};
+    setup.settings[".current-app-config"][sessionId] = {
+        appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
+        isDebugging: setup.settings[".current-app-config"][sessionId].isDebugging || false
     };
     await setup.pushSetupSettings();
     const result = await aiStart.new(historyJsonFilePath);
-    setup.settings['current-app-config'][sessionId].aiChatSettings ||= {};
-    setup.settings['current-app-config'][sessionId].aiChatSettings.chatHistory = [];
+    setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
+    setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = [];
     return result;
 }
 
@@ -142,18 +142,18 @@ start.old = async (
     }
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings['current-app-config'][sessionId] ||={};
-    setup.settings['current-app-config'][sessionId] = {
-        appFilePath: appFilePath || setup.settings['current-app-config'][sessionId].appFilePath || null,
-        appSettings: Object.assign(appSettings, setup.settings['current-app-config'][sessionId].appSettings || {}),
-        isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
+    setup.settings[".current-app-config"][sessionId] ||={};
+    setup.settings[".current-app-config"][sessionId] = {
+        appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
+        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
+        isDebugging: setup.settings[".current-app-config"][sessionId].isDebugging || false
     };
     await setup.pushSetupSettings();
     const result = await aiStart.old(historyJsonFilePath);
-    setup.settings['current-app-config'][sessionId].aiChatSettings ||= {};
+    setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
     const historyFilePath = await expandFilePath(historyJsonFilePath, {contextDir: "histories"});
     const chatHistoryToJSON = JSON.parse(await fs.readFile(historyFilePath, 'utf-8'));
-    setup.settings['current-app-config'][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
+    setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
     return result;
 }
 
@@ -176,18 +176,18 @@ export async function process({
         return;
     }
     queue[sessionId] = 1;
-    setup.settings['current-app-config'][sessionId] ||= {};
-    setup.settings['current-app-config'][sessionId] ||= {
-            appFilePath: setup.settings['current-app-config'][sessionId].appFilePath || null,
-            appSettings: setup.settings['current-app-config'][sessionId].appSettings || {},
-            isDebugging: setup.settings["current-app-config"][sessionId].isDebugging || false
+    setup.settings[".current-app-config"][sessionId] ||= {};
+    setup.settings[".current-app-config"][sessionId] ||= {
+            appFilePath: setup.settings[".current-app-config"][sessionId].appFilePath || null,
+            appSettings: setup.settings[".current-app-config"][sessionId].appSettings || {},
+            isDebugging: setup.settings[".current-app-config"][sessionId].isDebugging || false
     };
 
-    const appConfig = setup.settings['current-app-config'][sessionId];
+    const appConfig = setup.settings[".current-app-config"][sessionId];
     const multiCommandSettings = JSON.parse(JSON.stringify(appConfig));
-    const { isDebugging } = setup.settings['current-app-config'][sessionId];
+    const { isDebugging } = setup.settings[".current-app-config"][sessionId];
     
-    multiCommandSettings.aiChatSettings=setup.settings['current-app-config'][sessionId].aiChatSettings
+    multiCommandSettings.aiChatSettings=setup.settings[".current-app-config"][sessionId].aiChatSettings
     multiCommandSettings.aiChatSettings ||= {};
     multiCommandSettings.aiChatSettings.sessionId = sessionId;
     multiCommandSettings.app ||= {};

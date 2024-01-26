@@ -5,7 +5,7 @@ export const command = {
   id: "set",
   name: "set",
   description: "Set a variables for commands to use, or see what is currently set.",
-  examples: `set (<k1> as <v1>,<k2> as <v2>|json(+)? <json>)`,
+  examples: `set (<key> as <val>|json(+)? <json>|nill <key>)`,
   isInputCaseSensitive: true,
   isStartable: false,
 };
@@ -16,8 +16,23 @@ export async function process({ input, joinedInput }) {
     print(`JSON:\n\n${JSON.stringify(setup.settings)}\n`);
     return;
   }
+  if (input[0]=="nill") {
+    if (!input[1]) {
+      print ("No variable specified.")
+      return;
+    }
+    delete setup.settings[input[1]];
+    print (`${input[1]} deleted.`)
+    return;
+  }
   if (joinedInput.length == 0) {
-    print(`<KEY> AS <VALUE>:\n\n${JSON.stringify(setup.settings).replace(/(^\{|\}$)/g,'').replace(/":"/g," AS ").replace(/,/g,"\n").replace(/"/g,'')}`);
+    let simpleSettings = JSON.parse(JSON.stringify(setup.settings));
+
+    for (let key in simpleSettings) {
+      if (key[0]==".")
+        delete simpleSettings[key];
+    }
+    print(`<KEY> AS <VALUE>:\n\n${JSON.stringify(simpleSettings).replace(/(^\{|\}$)/g,'').replace(/":"/g," AS ").replace(/,/g,"\n").replace(/"/g,'')}`);
     return;
   }
   if (input.length == 2 && input[0] == 'json+') {
