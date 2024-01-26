@@ -10,7 +10,7 @@ export const command = {
     name: "start",
     description: "Start a session with startable commands like chat-with-ai.",
     examples: `start (new|old|last)? chat-with-ai`,
-    isInputCaseSensitive: false,
+    isInputCaseSensitive: true,
     isStartable: false
   };
 

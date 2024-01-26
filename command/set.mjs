@@ -6,7 +6,7 @@ export const command = {
   name: "set",
   description: "Set a variables for commands to use, or see what variables are currently set.",
   examples: `set (<k1> as <v1>,<k2> as <v2>|json(+)? <json>)`,
-  isInputCaseSensitive: false,
+  isInputCaseSensitive: true,
   isStartable: false,
 };
 
