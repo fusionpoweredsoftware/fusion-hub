@@ -10,11 +10,8 @@ import {
 import {
     getArgs,
     isString,
-    expandFilePath
+    expandFilePath,
 } from "fusion-hub/functions"
-import {
-    getCurrentChatHistoryFilePath
-} from "fusion-hub/paths";
 import setup from "fusion-hub/setup";
 import json5 from 'json5';
 
@@ -30,7 +27,6 @@ export const command = {
 setup.settings[".current-app-config"] = {};
 
 const ai = await import('fusion-hub/ai/api/' + currentAiApiName);
-ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
 
 const cliErrors = cli.errors;
 const runApp = async (
@@ -76,7 +72,12 @@ export async function start(appFilePath = null,
         isDebugging: false
     });
     await setup.pushSetupSettings();
-    return await aiStart();
+    const result = await aiStart();
+    setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
+    const chatHistory = await fs.readFile(ai.getCurrentChatHistoryFilename(sessionId),'utf-8');
+    const chatHistoryToJSON = JSON.parse(chatHistory);
+    setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
+    return result;
 }
 
 start.debug = async (appFilePath = null,
@@ -115,11 +116,11 @@ start.new = async (
     const { sessionId = 0 } = (appSettings ||= {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
-    setup.settings[".current-app-config"][sessionId] ||={};
+    setup.settings[".current-app-config"][sessionId] = {};
     setup.settings[".current-app-config"][sessionId] = {
-        appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
-        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
-        isDebugging: setup.settings[".current-app-config"][sessionId].isDebugging || false
+        appFilePath: appFilePath || null,
+        appSettings: appSettings,
+        isDebugging: appSettings.isDebugging || false
     };
     await setup.pushSetupSettings();
     const result = await aiStart.new(historyJsonFilePath);
@@ -156,11 +157,6 @@ start.old = async (
     setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
     return result;
 }
-
-export const {
-    chat
-} = ai;
-
 
 export const queue = {};
 
