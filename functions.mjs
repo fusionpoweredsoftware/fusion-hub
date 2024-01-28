@@ -11,6 +11,56 @@ let codeBlockCounter = 0;
 //specific keys that you are only interested in.
 //By default, if you specify no keys then it will attempt to parse normally and return the error as a string if it failed.
 
+export function generateUUID(i='') {
+  const uuid = `${new Date()
+      .toISOString()
+      .replace(/:/g, "").replace(/-/g, "").replace(/\./g, "")}${i}`;
+  return uuid;
+}
+
+export function getUidMdExplanation(uuid=null) {
+  uuid ||= generateUUID();
+  return `*** plaintext (${uuid}:uidmd_explanation)
+
+  For your code blocks, you must use the UIDMD notation. It is simlar to bactick notation, but different. An example of UIDMD notation is this conversation. (${uuid}) in the parenthesis right after 3 asterisks as demonstrated in this code block. The left side of the colon in parenthesis is the UUIDs
+  and the right side is the key that would may to the code block. The abstract form of this notation would be:
+
+  *** <code block data type> (<uuid>:<key>)
+  <value>
+  (<uuid>:<key>)
+
+  Note the same UIDMD notation is used to end the code block as well. This is the most important aspect of UIDMD notation.
+
+  This allows a parser on the recipient's side to parse data without ambiguity in code block start and ends, as well as claifying the designated purpose of
+  each code block in addition to the default code block type data. There is also an optional form that you can use if there are more than one keys of
+  the same name:
+
+  *** <code block data type> (<uuid>:<key>.<instance>)
+  <value>
+  <code block data type> (<uuid>:<key>.<instance>)
+
+  Where <instance> would be replaced with a unique integer, as to signify that the code block is part of an array of code blocks with the same key.
+
+  (${uuid}:uuid_explanation)`;
+}
+
+export function parseUIDMD(inputString) {
+  const regex = /\*\*\*\s*(\w+)\s*\((\w+):([^\)]+)\)\s*([\s\S]*?)\s*\(\2:\3\)/g;
+  const matches = [...inputString.matchAll(regex)];
+  const uidmdMap = {};
+  matches.forEach(match => {
+      Object.assign(uidmdMap, {
+          [match[3]]: {
+              format: match[1],
+              uid: match[2],
+              value: match[4]
+          }
+      });
+  });
+  uidmdMap['*']=inputString;
+  return uidmdMap;
+}
+
 export function parseTrickyJSON(inputString, keys) {
   try {
       // First, try parsing as standard JSON
@@ -126,7 +176,12 @@ export const filterOutput = (output, filterSettings=null) => {
   if (output == null)
     return output
   const { varTypeSettings } = filterSettings;
-  if (filterSettings.typeOfVar == 'TrickyJSON')
+
+  if (filterSettings.typeOfVar == 'UIDMD')
+  {
+    return parseUIDMD(output) || {};
+  } 
+  else if (filterSettings.typeOfVar == 'TrickyJSON')
   {
     const json = extractJson5Objects(output, { isEnglishOnly: true, isTrickyJSON: true, varTypeSettings});
     return (json.length > 0) ? json[0] : null;

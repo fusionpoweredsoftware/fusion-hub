@@ -1,4 +1,4 @@
-import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename } from 'fusion-hub/functions';
+import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename, getUidMdExplanation, generateUUID } from 'fusion-hub/functions';
 import cli, { properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
@@ -232,6 +232,30 @@ export async function evalCommand(commandIn, settings)
     else 
     {   
         try {
+            if (varType=='UIDMD') {
+                const uuid = generateUUID();
+                command=command.replace(new RegExp(varTypeSettings,"g"),uuid);
+                if (ai.chatHistory.length>2) {
+                    ai.chatHistory.shift();
+                    ai.chatHistory.shift();
+                }
+                    ai.chatHistory.unshift({
+                        "role": "user",
+                        "parts": [{
+                            "text": getUidMdExplanation(uuid)
+                        }]
+                    }, {
+                        "role": "model",
+                        "parts": [{
+                            "text": `That's an interesting notation! I will be sure to use UIDMD notation for each code block, whenever you ask to provide it. For example, if I have a plain-text code block about whales I will say: 
+                        
+                            ***plaintext (${uuid}:whales)
+                            Did you know baby orcas are called calves?
+                            (${uuid}:whales)
+                            \"\n    }`
+                        }]
+                    })
+            }
             const finalCommand = `${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput) && varType=='JSON') ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}`;
             output = await executeCommand(finalCommand, { isThrowing: true, aiChatSettings, isCommandStartLogged  });
             if (varType!='null' && isString(output))
