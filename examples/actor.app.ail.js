@@ -4,8 +4,7 @@
 //STOP
 //script:
 
-let { person = "Albert Einstein" } = app.settings;
-let { biosignature = null } = app.settings;
+let { person = "Albert Einstein",  biosignature = null  } = app.settings;
 
 if (person === "Albert Einstein" && biosignature==null)
     biosignature="Hello I am Albert Einstein. I was born in March 14, 1879, and I conceived of the theory of special relativity and general relativity, which had a deep impact in science's understanding of physics.";
@@ -36,7 +35,6 @@ if (isObject(actor)) {
     ai.chatHistory.pop();
     ai.chatHistory.pop();
 }
-
 
 /*STOP*/
 /*start app-using-ai*/
