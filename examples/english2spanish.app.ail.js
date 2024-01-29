@@ -6,7 +6,7 @@
 
 /*start chat-with-ai*/
 
-/*(translationData, JSON)
+/*(translationData, UIDMD)
 This is not a conversation. I only want you to translate this text in quotes to Spanish: 
 "${app.input}"
 

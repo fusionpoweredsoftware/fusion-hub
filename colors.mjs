@@ -25,3 +25,36 @@ export const bgMagenta = "\x1b[45m"
 export const bgCyan = "\x1b[46m"
 export const bgWhite = "\x1b[47m"
 export const bgGray = "\x1b[100m"
+
+
+export default {
+    reset,
+    bright,
+    dim,
+    underscore,
+    blink,
+    reverse,
+    hidden
+
+    ,
+    fgBlack,
+    fgRed,
+    fgGreen,
+    fgYellow,
+    fgBlue,
+    fgMagenta,
+    fgCyan,
+    fgWhite,
+    fgGray
+
+    ,
+    bgBlack,
+    bgRed,
+    bgGreen,
+    bgYellow,
+    bgBlue,
+    bgMagenta,
+    bgCyan,
+    bgWhite,
+    bgGray
+}

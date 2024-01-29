@@ -406,7 +406,7 @@ export const isIterable = (obj) =>
     return typeof obj[Symbol.iterator] === 'function';
 }
 
-function extractContinuousJapaneseAndChinese(inputString) {
+export function extractContinuousJapaneseAndChinese(inputString) {
   const regex = /[\u4e00-\u9fa5\u3040-\u309F\u30A0-\u30FF]+/g;
   const matches = inputString.match(regex);
   

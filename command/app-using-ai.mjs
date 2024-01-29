@@ -62,13 +62,13 @@ export async function start(appFilePath = null,
     }
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings ||= {});
+    const { sessionId = 0 } = (appSettings || {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings[".current-app-config"][sessionId] ||={};
     Object.assign(setup.settings[".current-app-config"][sessionId], {
         appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
-        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
+        appSettings: appSettings || setup.settings[".current-app-config"][sessionId].appSettings || {},
         isDebugging: false
     });
     await setup.pushSetupSettings();
@@ -90,16 +90,22 @@ start.debug = async (appFilePath = null,
     }
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings ||= {});
+    const { sessionId = 0 } = (appSettings || {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings[".current-app-config"][sessionId] ||={};
     Object.assign(setup.settings[".current-app-config"][sessionId], {
         appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
-        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
-        isDebugging: false
+        appSettings: appSettings || setup.settings[".current-app-config"][sessionId].appSettings || {},
+        isDebugging: true
     });
-    return await aiStart();
+    await setup.pushSetupSettings();
+    const result = await aiStart();
+    setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
+    const chatHistory = await fs.readFile(ai.getCurrentChatHistoryFilename(sessionId),'utf-8');
+    const chatHistoryToJSON = JSON.parse(chatHistory);
+    setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
+    return result;
 }
 
 start.new = async (

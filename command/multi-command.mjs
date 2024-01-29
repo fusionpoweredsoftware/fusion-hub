@@ -24,7 +24,7 @@ let lastVarType = null;
 let lastOutput = null;
 let lastSettings = null;
 
-export const command = {
+export const escapedCommand = {
     id: "multi-command",
     name: "multi-command",
     description: "Run multiple commands from a file.",
@@ -48,7 +48,7 @@ export async function process({input, joinedInput, settings = {}}) {
     const filePath = input[0];
     if (input.length < 1 || filePath == '')
     {
-        log(command.examples);
+        log(escapedCommand.examples);
         return;
     }
     settings.aiChatSettings ||= {};
@@ -56,6 +56,8 @@ export async function process({input, joinedInput, settings = {}}) {
     settings.app ||= {};
     settings.app.input ||= '';
     settings.app.settings ||= {};
+    if (settings.app.input)
+        input = settings.app.input;
     const { mcFileContextDir = 'multi-command', historyContextDir = 'multi-command-history'  } = settings;
     const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app = {}, aiChatSettings = {}} = settings;
     if (aiChatSettings.chatHistory && ai.chatHistory != aiChatSettings.chatHistory) {
@@ -126,7 +128,7 @@ export async function process({input, joinedInput, settings = {}}) {
                 let prependAssignment = '';
                 let varType = 'null';
                 let varTypeSettings = 'null';
-                let mcVarRegex = /^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*(:[ ]*(?<varTypeSettings>[_a-zA-Z0-9,]+)[ ]*)?\)\n?/m;
+                let mcVarRegex = /^\([ ]*(?<varName>[_a-zA-Z0-9]+)[ ]*,[ ]*(?<varType>[_a-zA-Z0-9]+)[ ]*(:[ ]*(?<varTypeSettings>[-+_a-zA-Z0-9,?]+)[ ]*)?\)\n?/m;
                 let matches = commandAndCode[0].match(mcVarRegex);
                 if (matches != null)
                 {
@@ -143,10 +145,22 @@ export async function process({input, joinedInput, settings = {}}) {
                         error('Invalid command assignment: (' + matches.groups.varName + ', ' + varType + ')');
                     }
                 }
-                const escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
+                let escapedCommand = commandAndCode[0].replace(/`/g, '\\`')
+                if (varType=='UIDMD' && varTypeSettings) {
+                    let uidMdInput = varTypeSettings.split(",");
+                    let uuid = uidMdInput[0];
+                    uidMdInput=uidMdInput.slice(1);
+                    if (uidMdInput.length>0) {
+                        escapedCommand+=`\n\nProvided code blocks:`;
+                        for (let i = 0; i < uidMdInput.length; i++) {
+                            uidMdInput[i]=uidMdInput[i].replace(/[-+?]/g,'');
+                            escapedCommand+=`\n\n***plaintext (${uuid}:${uidMdInput[i]})\n\$\{${uidMdInput[i]}\}\n(${uuid}:${uidMdInput[i]})`;
+                        }
+                    }
+                }
                 const funcBodyToEval = async () => (await evalCommand(`${escapedCommand}`, { aiChatSettings, stopCommandIn: `${stopCommand}` , varTypeIn: `${varType}`, varTypeSettings: `${varTypeSettings}`, cliProperties}));
                 const codeBody = extractLambdaFunctionBody(funcBodyToEval, { varType, escapedCommand, stopCommand, varTypeSettings });
-                codeToEvalFinal += `\n${prependAssignment}${codeBody};\n`; 
+                codeToEvalFinal += `\n${prependAssignment}${codeBody};\n`;
                 codeToEvalFinal += (commandAndCode.length == 2) ? commandAndCode[1]: '';
             }
             else if (commandAndCode.length > 2)
@@ -232,29 +246,49 @@ export async function evalCommand(commandIn, settings)
     else 
     {   
         try {
-            if (varType=='UIDMD') {
+            if (varType=="UIDMD") {
                 const uuid = generateUUID();
-                command=command.replace(new RegExp(varTypeSettings,"g"),uuid);
                 if (ai.chatHistory.length>2) {
                     ai.chatHistory.shift();
                     ai.chatHistory.shift();
                 }
-                    ai.chatHistory.unshift({
-                        "role": "user",
-                        "parts": [{
-                            "text": getUidMdExplanation(uuid)
-                        }]
-                    }, {
-                        "role": "model",
-                        "parts": [{
-                            "text": `That's an interesting notation! I will be sure to use UIDMD notation for each code block, whenever you ask to provide it. For example, if I have a plain-text code block about whales I will say: 
-                        
-                            ***plaintext (${uuid}:whales)
-                            Did you know baby orcas are called calves?
-                            (${uuid}:whales)
-                            \"\n    }`
-                        }]
-                    })
+                if (varTypeSettings) {
+                    let uidMdInput = varTypeSettings.split(",");
+                    command=command.replace(new RegExp(uidMdInput[0],"g"),uuid);
+                    let cleanChatHistory = JSON.parse(JSON.stringify(ai.chatHistory));
+                    if (cleanChatHistory.length>4) {
+                        for ( let i = 0; i < 4; i++)
+                            cleanChatHistory.shift();
+                        cleanChatHistory=JSON.stringify(cleanChatHistory);
+                        for (let i = 0; i < uidMdInput.length; i++) {
+                            if (uidMdInput[i][0]=='-') {
+                                uidMdInput[i]=uidMdInput[i].replace(/[-+?]/g,'');
+                                cleanChatHistory = cleanChatHistory.replace(new RegExp(`\\\\n\\\\n\\*\\*\\*[_a-zA-Z0-9]* \\(([_a-zA-Z0-9]*):${uidMdInput[i]}\\)\\\\n.*\\\\n\\(\\1:${uidMdInput[i]}\\)`,`g`),'');
+                            }
+                        }
+                        cleanChatHistory=JSON.parse(cleanChatHistory);
+                        ai.chatHistory.length-4;
+                        while (ai.chatHistory.length>4)
+                            ai.chatHistory.pop();
+                        ai.chatHistory.push(...cleanChatHistory);
+                    }
+                }
+                ai.chatHistory.unshift({
+                    "role": "user",
+                    "parts": [{
+                        "text": getUidMdExplanation(uuid)
+                    }]
+                }, {
+                    "role": "model",
+                    "parts": [{
+                        "text": `That's an interesting notation! I will be sure to use UIDMD notation for each code block, whenever you ask to provide it. For example, if I have a plain-text code block about whales I will say: 
+                    
+                        ***plaintext (${uuid}:whales)
+                        Did you know baby orcas are called calves?
+                        (${uuid}:whales)
+                        \"\n    }`
+                    }]
+                });
             }
             const finalCommand = `${command.replace(/`/g, '\\`')}${(repeatQuery && isString(lastOutput) && varType=='JSON') ? `\n\nUse the output from the JSON parser to help resolve the issue: ${lastOutput}` : ''} ${additionalInfo||''}`;
             output = await executeCommand(finalCommand, { isThrowing: true, aiChatSettings, isCommandStartLogged  });
