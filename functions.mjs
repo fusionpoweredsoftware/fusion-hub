@@ -11,6 +11,17 @@ let codeBlockCounter = 0;
 //specific keys that you are only interested in.
 //By default, if you specify no keys then it will attempt to parse normally and return the error as a string if it failed.
 
+
+export async function reloadModule(modulePath, { isExtensionIncluded = false }={}) {
+  // Append a unique timestamp as a query string
+  const newPath = `${modulePath}${isExtensionIncluded ? '' : '.mjs'}?update=${Date.now()}`;
+
+  // Dynamically import the module with the new path
+  const module = await import(newPath);
+
+  return module;
+}
+
 export function generateUUID(i='') {
   const uuid = `${new Date()
       .toISOString()

@@ -62,7 +62,7 @@ export async function start(appFilePath = null,
     }
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings || {});
+    const { sessionId = (setup.settings[".current-app-config"].startedSessionId || 0)  } = (appSettings || {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings[".current-app-config"][sessionId] ||={};
@@ -72,7 +72,8 @@ export async function start(appFilePath = null,
         isDebugging: false
     });
     await setup.pushSetupSettings();
-    const result = await aiStart();
+    const result = await aiStart({ initParameters: { sessionId }});
+    setup.settings[".current-app-config"].startedSessionId=sessionId;
     setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
     const chatHistory = await fs.readFile(ai.getCurrentChatHistoryFilename(sessionId),'utf-8');
     const chatHistoryToJSON = JSON.parse(chatHistory);
@@ -90,7 +91,7 @@ start.debug = async (appFilePath = null,
     }
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings || {});
+    const { sessionId = (setup.settings[".current-app-config"].startedSessionId || 0) } = (appSettings || {});
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings[".current-app-config"][sessionId] ||={};
@@ -129,9 +130,11 @@ start.new = async (
         isDebugging: appSettings.isDebugging || false
     };
     await setup.pushSetupSettings();
-    const result = await aiStart.new(historyJsonFilePath);
+    
+    const result = await aiStart.new(historyJsonFilePath, { sessionId });
     setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
     setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = [];
+    setup.settings[".current-app-config"].startedSessionId=sessionId;
     return result;
 }
 
@@ -142,7 +145,7 @@ start.old = async (
     parameterOverload = {}) => {
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = 0 } = (appSettings ||= {});
+    const { sessionId = (setup.settings[".current-app-config"].startedSessionId || 0) } = (appSettings ||= {});
     if (typeof parameterOverload !== 'object') {
         cliErrors.argumentsLimitError(3);
         return false;
@@ -161,6 +164,7 @@ start.old = async (
     const historyFilePath = await expandFilePath(historyJsonFilePath, {contextDir: "histories"});
     const chatHistoryToJSON = JSON.parse(await fs.readFile(historyFilePath, 'utf-8'));
     setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
+    setup.settings[".current-app-config"].sessionId=sessionId;
     return result;
 }
 
@@ -170,7 +174,7 @@ export async function process({
     joinedInput: appInput,
     settings = {},
 }) { 
-   const { sessionId = 0 } = settings;
+   const { sessionId = (setup.settings[".current-app-config"].startedSessionId || 0) } = settings;
    const { log, error } = output;
    try {
     if (sessionId in queue) {

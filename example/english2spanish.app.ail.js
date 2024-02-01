@@ -30,6 +30,6 @@ while (isInvalid() && attempts++<5)
     translationData=await repeatCommand();
 
 if (isInvalid())
-    print("Unable to translate.");
+    output.print("Unable to translate.");
 else
-    print(translationData.translationToSpanish);
+    output.print(translationData.translationToSpanish);

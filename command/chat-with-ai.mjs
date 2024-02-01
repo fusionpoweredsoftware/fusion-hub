@@ -73,7 +73,7 @@ start.new = async (
       .slice(0, 19)}.json`;
 
     const temporaryHistoryFilePath = path.join((await getChatHistoryDirPath()),temporaryHistoryFilename);
-    await fs.rename(ai.getCurrentChatHistoryFilename(), temporaryHistoryFilePath);
+    await fs.rename(ai.getCurrentChatHistoryFilename(sessionId), temporaryHistoryFilePath);
     await start({
       action: "Finalizing previous",
       inputHistoryFilePath: temporaryHistoryFilePath,

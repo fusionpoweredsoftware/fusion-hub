@@ -1,4 +1,4 @@
-import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename, getUidMdExplanation, generateUUID } from 'fusion-hub/functions';
+import { expandFilePath, extractLambdaFunctionBody, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename, getUidMdExplanation, generateUUID, reloadModule } from 'fusion-hub/functions';
 import cli, { properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import path from 'path';
 import fs from 'fs/promises';
@@ -32,16 +32,6 @@ export const escapedCommand = {
     isInputCaseSensitive: true,
     isStartable: false
   };
-
-async function reloadModule(modulePath) {
-    // Append a unique timestamp as a query string
-    const newPath = `${modulePath}?update=${Date.now()}`;
-
-    // Dynamically import the module with the new path
-    const module = await import(newPath);
-
-    return module;
-}
 
 export async function process({input, joinedInput, settings = {}}) {
     const { error, log } = cli.output;
@@ -180,7 +170,7 @@ export async function process({input, joinedInput, settings = {}}) {
         if (isLoggingMultiCommandFileContents)
             log(codeToEvalFinal)
         await fs.writeFile(debuggableFile,codeToEvalFinal);
-        const importedCode = await reloadModule(debuggableFile);
+        const importedCode = await reloadModule(debuggableFile, {isExtensionIncluded: true});
         if (isInterruptable) {
             importedCode.run(input, app, aiChatSettings);
         } else
