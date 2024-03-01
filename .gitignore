@@ -7,3 +7,10 @@ ai/package-lock.json
 testing/my-*-test.*
 node_modules/
 file.txt
+app-lib/actor-train-local-ai.mjs
+example/train-local-ai.app.ail.js
+command/train-local-ai.mjs
+workspace
+example/.*
+bad_response.txt
+CFG.md

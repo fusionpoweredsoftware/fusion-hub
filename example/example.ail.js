@@ -51,8 +51,8 @@ start new chat-with-ai game-design-conversation-${randNum}.json
 let myGameJSON;
 if (script.json.isContinuing) {
     myGameJSON=await readInGameJson();
-    ai.chatHistory.length=0;
-    ai.chatHistory.push(...(myGameJSON.chatHistory||[]));
+    ai.chatHistory[0].length=0;
+    ai.chatHistory[0].push(...(myGameJSON.chatHistory||[]));
 }
 else {
     if (script.json.direction && !script.json.direction.match(/[\?\!\.]$/g))
@@ -146,7 +146,7 @@ for (let i=myGameJSON.stopIndex; i<=N; i++)
     Note here I use "..." to indicate there may be multiple JSON (standard JSON) objects in an array.  Also, note objectives is an array of JSON (standard JSON) objects. Do not leave out any objectives.
     */
 
-    let savedLength = ai.chatHistory.length;
+    let savedLength = ai.chatHistory[0].length;
 
     // kludge
     if (!isObject(chapterJson) || !chapterJson.objectives || !isIterable(chapterJson.objectives) || chapterJson.objectives.length == 0)
@@ -366,9 +366,9 @@ for (let i=myGameJSON.stopIndex; i<=N; i++)
         }
     }
 
-    while (ai.chatHistory.length > savedLength)
+    while (ai.chatHistory[0].length > savedLength)
     {
-        ai.chatHistory.pop()
+        ai.chatHistory[0].pop ()
     }
 }
 log('Game definition created successfully.');

@@ -1,9 +1,9 @@
 import os from "os";
 import fs from "fs/promises";
 import _fs from "fs";
-import path, { parse } from "path";
+import path from "path";
 import { cliRoot } from "fusion-hub/paths";
-import setup from "fusion-hub/setup";
+import setup from 'fusion-hub/setup'
 import json5 from "json5";
 let codeBlockCounter = 0;
 
@@ -11,6 +11,45 @@ let codeBlockCounter = 0;
 //specific keys that you are only interested in.
 //By default, if you specify no keys then it will attempt to parse normally and return the error as a string if it failed.
 
+export function isJsonString(str) {
+  try {
+      JSON.parse(str);
+  } catch (e) {
+      return false;
+  }
+  return true;
+}
+
+export async function readJsonFile(filePath, { defaultJson = {}, contextDir } = {}) {
+  let readObj = {};
+  const expandedFilePath = await expandFilePath(filePath, { contextDir });
+  if (_fs.existsSync(expandedFilePath)) {
+     const jsonData = await fs.readFile(expandedFilePath, 'utf-8');
+     const json = JSON.parse(jsonData);
+     readObj = {
+      json,
+      save: async () => await writeJsonFile(filePath, readObj.json, { contextDir }),
+      backup: async () => await writeJsonFile(filePath+".bak", readObj.json, { contextDir }),
+     }
+  } else {
+    readObj = {
+      save: async () => await writeJsonFile(expandedFilePath, readObj.json, { contextDir }),
+      backup: async () => await writeJsonFile(expandedFilePath+".bak", readObj.json, { contextDir }),
+      json: defaultJson
+    }
+  }
+  return readObj;
+}
+
+export async function writeJsonFile(filePath, json, { contextDir } = {}) {
+  const expandedFilePath = await expandFilePath(filePath, { contextDir });
+  if (isObject(json))
+    await fs.writeFile(expandedFilePath, JSON.stringify(json));
+  else {
+    await fs.writeFile("malformed_json.txt", json);
+    throw "ERROR: Attempting to write malformed JSON."
+  }
+} 
 
 export async function reloadModule(modulePath, { isExtensionIncluded = false }={}) {
   // Append a unique timestamp as a query string
@@ -55,16 +94,23 @@ export function getUidMdExplanation(uuid=null) {
   (${uuid}:uuid_explanation)`;
 }
 
-export function parseUIDMD(inputString) {
+export function parseUIDMD(inputString, depth=0, maxDepth=1) {
+  if (depth>maxDepth)
+    return;
   const regex = /\*\*\*\s*(\w+)\s*\((\w+):([^\)]+)\)\s*([\s\S]*?)\s*\(\2:\3\)/g;
-  const matches = [...inputString.matchAll(regex)];
+  const matches = [...inputString.matchAll(regex)]; 
   const uidmdMap = {};
   matches.forEach(match => {
+      let nestedUIDMD = parseUIDMD(match[4],depth++);
+      if (!isObject(nestedUIDMD) || !Object.keys(nestedUIDMD).length<=1) {
+        nestedUIDMD=null;
+      }
       Object.assign(uidmdMap, {
           [match[3]]: {
               format: match[1],
               uid: match[2],
-              value: match[4]
+              value: match[4],
+              nestedUIDMD
           }
       });
   });
@@ -419,6 +465,17 @@ export const isIterable = (obj) =>
 
 export function extractContinuousJapaneseAndChinese(inputString) {
   const regex = /[\u4e00-\u9fa5\u3040-\u309F\u30A0-\u30FF]+/g;
+  const matches = inputString.match(regex);
+  
+  if (matches) {
+    return matches.map(match => `${match}`);
+  } else {
+    return [];
+  }
+}
+
+export function extractContinuousNonEnglishCharacters(inputString) {
+  const regex = /[^0-9A-Za-z:;<>*\[\]()!?.,/{}=+-@#$%^~`|'" \n\r]+/g;
   const matches = inputString.match(regex);
   
   if (matches) {

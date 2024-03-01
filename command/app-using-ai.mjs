@@ -12,6 +12,9 @@ import {
     isString,
     expandFilePath,
 } from "fusion-hub/functions"
+import {
+    getCurrentChatHistoryFilePath
+} from "fusion-hub/paths"
 import setup from "fusion-hub/setup";
 import json5 from 'json5';
 
@@ -51,33 +54,32 @@ const runApp = async (
   }
 
 
-export async function start(appFilePath = null,
+export async function start(
+    appFilePath = null,
     appSettings = null,
-    parameterOverload = {},
-{
-} = {}) {
-    if (typeof parameterOverload !== 'object') {
-        cliErrors.argumentsLimitError(2);
-        return false;
-    }
+    parameterOverload = {}) {
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);
-    const { sessionId = (setup.settings[".current-app-config"].startedSessionId || 0)  } = (appSettings || {});
+    const { sessionId = (setup.settings[".current-app-config"].startedSessionId || 0) } = (appSettings ||= {});
+    if (typeof parameterOverload !== 'object') {
+        cliErrors.argumentsLimitError(3);
+        return false;
+    }
     if (appFilePath)
         appFilePath+=".app.ail.js";
     setup.settings[".current-app-config"][sessionId] ||={};
-    Object.assign(setup.settings[".current-app-config"][sessionId], {
+    setup.settings[".current-app-config"][sessionId] = {
         appFilePath: appFilePath || setup.settings[".current-app-config"][sessionId].appFilePath || null,
-        appSettings: appSettings || setup.settings[".current-app-config"][sessionId].appSettings || {},
-        isDebugging: false
-    });
+        appSettings: Object.assign(appSettings, setup.settings[".current-app-config"][sessionId].appSettings || {}),
+        isDebugging: setup.settings[".current-app-config"][sessionId].isDebugging || false
+    };
     await setup.pushSetupSettings();
-    const result = await aiStart({ initParameters: { sessionId }});
-    setup.settings[".current-app-config"].startedSessionId=sessionId;
+    const historyFilePath = await getCurrentChatHistoryFilePath();
+    const result = await aiStart();
     setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
-    const chatHistory = await fs.readFile(ai.getCurrentChatHistoryFilename(sessionId),'utf-8');
-    const chatHistoryToJSON = JSON.parse(chatHistory);
+    const chatHistoryToJSON = JSON.parse(await fs.readFile(historyFilePath, 'utf-8'));
     setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = chatHistoryToJSON;
+    setup.settings[".current-app-config"].sessionId=sessionId;
     return result;
 }
 
@@ -133,15 +135,15 @@ start.new = async (
     
     const result = await aiStart.new(historyJsonFilePath, { sessionId });
     setup.settings[".current-app-config"][sessionId].aiChatSettings ||= {};
-    setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = [];
+    setup.settings[".current-app-config"][sessionId].aiChatSettings.chatHistory = { 0: [] };
     setup.settings[".current-app-config"].startedSessionId=sessionId;
     return result;
 }
 
 start.old = async (
+    historyJsonFilePath = null,
     appFilePath = null,
     appSettings = null,
-    historyJsonFilePath = null,
     parameterOverload = {}) => {
     if (isString(appSettings))
         appSettings = json5.parse(appSettings);

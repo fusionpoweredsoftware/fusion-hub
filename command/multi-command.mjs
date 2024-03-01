@@ -8,7 +8,8 @@ import json5 from 'json5';
 import setup from 'fusion-hub/setup'
 
 export const ai = {
-    chatHistory: []
+    chatHistory: { 0: [] },
+    channel: 0
 }
 
 export const parser = {
@@ -42,7 +43,7 @@ export async function process({input, joinedInput, settings = {}}) {
         return;
     }
     settings.aiChatSettings ||= {};
-    settings.aiChatSettings.chatHistory ||= [];
+    settings.aiChatSettings.chatHistory ||= { 0: [] };
     settings.app ||= {};
     settings.app.input ||= '';
     settings.app.settings ||= {};
@@ -51,10 +52,11 @@ export async function process({input, joinedInput, settings = {}}) {
     const { mcFileContextDir = 'multi-command', historyContextDir = 'multi-command-history'  } = settings;
     const { isLoggingMultiCommandFileContents = true, isVerbose = true, isInterruptable = true, app = {}, aiChatSettings = {}} = settings;
     if (aiChatSettings.chatHistory && ai.chatHistory != aiChatSettings.chatHistory) {
-        ai.chatHistory.length=0;
-        ai.chatHistory.push(...aiChatSettings.chatHistory); 
+        ai.chatHistory[0].length=0;
+        ai.chatHistory[0].push(...aiChatSettings.chatHistory[0]); 
     }
     aiChatSettings.chatHistory = ai.chatHistory;
+    aiChatSettings.channel = ai.channel;
     let readFilePath = await expandFilePath(filePath, {contextDir: mcFileContextDir})
     let commandText = await fs.readFile(readFilePath, 'utf-8');
     commandText = commandText.replace(/^[^\n]+\n/, 'multi-command ' + joinedInput + '\n');
@@ -238,14 +240,14 @@ export async function evalCommand(commandIn, settings)
         try {
             if (varType=="UIDMD") {
                 const uuid = generateUUID();
-                if (ai.chatHistory.length>2) {
-                    ai.chatHistory.shift();
-                    ai.chatHistory.shift();
+                if (ai.chatHistory[0].length>2) {
+                    ai.chatHistory[0].shift();
+                    ai.chatHistory[0].shift();
                 }
                 if (varTypeSettings) {
                     let uidMdInput = varTypeSettings.split(",");
                     command=command.replace(new RegExp(uidMdInput[0],"g"),uuid);
-                    let cleanChatHistory = JSON.parse(JSON.stringify(ai.chatHistory));
+                    let cleanChatHistory = JSON.parse(JSON.stringify(ai.chatHistory[0]));
                     if (cleanChatHistory.length>4) {
                         for ( let i = 0; i < 4; i++)
                             cleanChatHistory.shift();
@@ -257,13 +259,13 @@ export async function evalCommand(commandIn, settings)
                             }
                         }
                         cleanChatHistory=JSON.parse(cleanChatHistory);
-                        ai.chatHistory.length-4;
-                        while (ai.chatHistory.length>4)
-                            ai.chatHistory.pop();
-                        ai.chatHistory.push(...cleanChatHistory);
+                        ai.chatHistory[0].length-4;
+                        while (ai.chatHistory[0].length>4)
+                            ai.chatHistory[0].pop();
+                        ai.chatHistory[0].push(...cleanChatHistory);
                     }
                 }
-                ai.chatHistory.unshift({
+                ai.chatHistory[0].unshift({
                     "role": "user",
                     "parts": [{
                         "text": getUidMdExplanation(uuid)

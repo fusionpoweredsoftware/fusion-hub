@@ -17,7 +17,7 @@ process.emitWarning = (warning, ...args) => {
 
   return emitWarning(warning, ...args);
 };
-
+const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const aiChatsMap = {};
 
 const originalWrite = process.stdout.write.bind(process.stdout);
@@ -143,17 +143,24 @@ export const chat = async (textInput, {
   secondAttempt=false,
   isStreaming = true,
   chatHistory = undefined,
+  channel = 0
 } = {}) => {
   try {
+    chatHistory||={};
     if (!setup.settings['vertex-ai-project']) {
       console.log("ERROR: Unable to chat with AI. No Vertex AI project set!")
       return;
     }
-    if (chatHistory && Array.isArray(chatHistory)) {
-      aiChatsMap[sessionId].historyInternal=chatHistory;
+    
+    if (chatHistory && isObject(chatHistory) && Array.isArray(chatHistory[channel])) {
+      aiChatsMap[sessionId].historyInternal=chatHistory[channel];
     }
-    chatHistory ||= aiChatsMap[sessionId].historyInternal;
-    let freezeHistory = JSON.stringify(chatHistory);
+    else if (chatHistory && !isObject(chatHistory) && Array.isArray(chatHistory)) {
+      chatHistory = { [channel]: chatHistory };
+    }
+
+    chatHistory[channel] ||= aiChatsMap[sessionId].historyInternal;
+    let freezeHistory = JSON.stringify(chatHistory[channel]);
 
     await clean(sessionId);
     const userMessage = [{
@@ -210,12 +217,14 @@ export const chat = async (textInput, {
         await chatStdout.write("\nai> "+responseText);
     }
     await chatStdout.write("\n\n");
+
     if (isPersistent)
-      await fs.writeFile(currentChatHistoryFilePath + (sessionId ? '.' + sessionId : ''), JSON.stringify(aiChatsMap[sessionId].historyInternal))
-    if (chatHistory && isInitialization) {
-      chatHistory.length=0;
-      chatHistory.push(...JSON.parse(freezeHistory));
+      await fs.writeFile(currentChatHistoryFilePath + (sessionId ? '.' + sessionId : ''), JSON.stringify(chatHistory))
+    if (chatHistory[channel] && isInitialization) {
+      chatHistory[channel].length=0;
+      chatHistory[channel].push(...JSON.parse(freezeHistory));
     }
+
     await clean(sessionId);
     return finalOutput;
   } catch (err) {
@@ -308,7 +317,7 @@ export async function init({
       const historyJSON = await fs.readFile(inputHistoryFilePath || currentChatHistoryFilePath, 'utf-8');
       history = JSON.parse(historyJSON);
       aiChatsMap[sessionId].historyInternal.length=0;
-      aiChatsMap[sessionId].historyInternal.push(...history);
+      aiChatsMap[sessionId].historyInternal.push(...history[0]);
     }
     let aiResponse = null;
     let isStartOfChat = (!aiChatsMap || !aiChatsMap[sessionId] || !aiChatsMap[sessionId].historyInternal || aiChatsMap[sessionId].historyInternal.length==0);

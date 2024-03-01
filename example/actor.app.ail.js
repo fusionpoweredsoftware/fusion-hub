@@ -4,7 +4,7 @@
 //STOP
 
 //script:
-const actor = await reloadModule("fusion-hub/lib/actor");
+const actor = await reloadModule("fusion-hub/app-lib/actor");
 
 await actor.process({
     getUnprocessedActorResponse: async ({ person, biosignature, rules, explanation, input }) => {

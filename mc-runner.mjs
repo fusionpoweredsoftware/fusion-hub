@@ -1,5 +1,5 @@
 
-import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename, extractJson5Objects, parseUIDMD, getArgs, extractContinuousJapaneseAndChinese, reloadModule } from 'fusion-hub/functions';
+import { expandFilePath, extractLambdaFunctionBody, sleep, filterOutput, isObject, isString, stabilizeOutput, addPeriodToBasename, extractJson5Objects, parseUIDMD, getArgs, extractContinuousJapaneseAndChinese, reloadModule, writeJsonFile, readJsonFile, isJsonString } from 'fusion-hub/functions';
 import cli, { output, properties as cliProperties, executeCommand } from 'fusion-hub/cli';
 import cliColors from 'fusion-hub/colors';
 import { evalCommand, repeatCommand, ai } from 'fusion-hub/command/multi-command';

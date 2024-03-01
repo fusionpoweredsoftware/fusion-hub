@@ -137,7 +137,7 @@ start.new = async (
   return true;
 }
 
-start.old = async (historyJsonFilePath=null, 
+start.old = async (historyJsonFilePath=null,
   initParameters = {}, startType='old'
 ) => {
   initParameters.newDefaultStdout ||= cli.output;

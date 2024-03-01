@@ -6,7 +6,7 @@ import json5 from 'json5';
 
 export async function process(data) {
     const NONENGLISH_CHARACTERS_DETECTED={};
-    const { input, output, app, ai, getUnprocessedActorResponse } = data;
+    const { input, output, app, ai, getUnprocessedActorResponse, isResponseExpected = true } = data;
     let actorsFile = await expandFilePath('~~~/actors.json', { contextDir: "actors" });
     if (!_fs.existsSync(actorsFile))
         await fs.copyFile("./actors.json",actorsFile);
@@ -52,7 +52,7 @@ export async function process(data) {
     async function getActor({isRetry=false, rulesEmphasis}={}) {
         let rules = getRules(rulesEmphasis);
         let explanation='';
-        if (ai.chatHistory.length<4 || isRetry) {
+        if (ai.chatHistory[0].length<4 || isRetry) {
             explanation=` When responding, use the following code block with UIDMD notation and populate its contents with the response you are providing for ${person}:
             
             ***plaintext (20240128T061128170Z:response)
@@ -70,19 +70,19 @@ export async function process(data) {
     Object.assign(app.settings, { person, biosignature});
 
     let actor = await getActor(), isResponding=false, response = {};
-    if (isObject(actor)) {
+    if (isObject(actor) && isResponseExpected) {
         response = actor.response || {};
         for (let i = 0; i < 3; i++) {
             if (!response.value) {
                 output.print("Loading...");
-                ai.chatHistory.pop();
-                ai.chatHistory.pop();
+                ai.chatHistory[0].pop ();
+                ai.chatHistory[0].pop ();
                 let rulesEmphasis = {};
                 if (actor==NONENGLISH_CHARACTERS_DETECTED)
                     rulesEmphasis = {1:'! (THIS MEANS NO CHINESE OR JAPENESE CHARACTERS!!!)'}
                 actor = await getActor({isRetry: true, rulesEmphasis});
                 if (isObject(actor))
-                    response = actor.response;
+                    response = actor.response || {};
             } else {
                 break;
             }
@@ -113,12 +113,14 @@ export async function process(data) {
                 output.print(`\n${cliColors.fgBlue}${person}>${cliColors.reset} `+response.value+"\n");
             }
         }
+    } else if (!isResponseExpected) {
+        return actor;
     }
 
     if (!isResponding) {
         output.print("Bad response: "+response["*"])
-        ai.chatHistory.pop();
-        ai.chatHistory.pop();
+        ai.chatHistory[0].pop ();
+        ai.chatHistory[0].pop ();
     }
     return response;
 }
