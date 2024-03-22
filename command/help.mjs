@@ -12,7 +12,7 @@ export const command = {
     isStartable: false
   };
 
-export async function listCommandModules(commandInfo=null, { commandPath } = cliProperties) {
+export async function listCommandModules(commandInfo=[], { commandPath } = cliProperties) {
     const { print } = output;
     const commandModuleFilePaths = await getMjsFilePathsInDirectory(commandPath);
     const col = [13, 75, 34];
@@ -20,7 +20,7 @@ export async function listCommandModules(commandInfo=null, { commandPath } = cli
     let commandFound=false;
     for (let commandModuleFilePath of commandModuleFilePaths) {
         const commandModuleName = cliProperties.commandModuleRoot+"/"+path.basename(commandModuleFilePath.replace(/\.mjs$/g,''));
-        const commandModule = await import(commandModuleName);
+        const commandModule = await cliProperties.import(commandModuleName);
         if (commandInfo.length==0||commandModule.command.id===commandInfo[0]) {
             if (!commandFound) {
                 print();

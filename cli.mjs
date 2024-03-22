@@ -19,7 +19,8 @@ export const properties = {
   lastCommandMode: null,
   lockModeTo: null,
   commandPath: null,
-  commandModuleRoot: null
+  commandModuleRoot: null,
+  import: async (path) => await import(path)
 };
 
 const event = (eventType, eventData, stamp=`[${getTimestamp()}]`, seperator = ' - ') => {
@@ -42,7 +43,7 @@ export const output = {
 
 let rl;
 
-export const executeCommand = async (input, settings = {}, extensiveInputBuffer = null) => {
+export const executeCommand = async (input, settings = {}, extensiveInputBuffer = []) => {
   if (!input || !input.split)
     return;
   let joinedInput = input;
@@ -60,7 +61,7 @@ export const executeCommand = async (input, settings = {}, extensiveInputBuffer 
       properties.commandPath ||= defaultCommandPath;
       properties.commandModuleRoot ||= commandModuleRoot;
       const commandModulePath = properties.commandModuleRoot + '/' + command + ((properties.commandModuleRoot[0].match(/[\.\/]/g)) ? ".mjs" : '');
-      const importedCommand = await import(commandModulePath);
+      const importedCommand = await properties.import(commandModulePath);
       if (!importedCommand.command.isInputCaseSensitive) {
         joinedInput = lowercaseJoinedInput;
         for (let i=0; i<input.length; i++)
