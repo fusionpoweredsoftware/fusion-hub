@@ -5,7 +5,7 @@
 
 //script:
 
-//NOTE: This script does not use an app-lib yet. 
+//NOTE: This script does not use an app-lib yet. This is bad for two reasons: it cannot be used in other apps, and it cannot
 
 let actorsFile = await expandFilePath('~~~/actors.json', { contextDir: "actors" });
 if (!_fs.existsSync(actorsFile))

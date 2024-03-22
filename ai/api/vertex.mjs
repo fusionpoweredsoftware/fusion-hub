@@ -57,7 +57,7 @@ const getVertexAI = (project) => (new VertexAI({
   location: 'us-central1'
 }))
 
-const model = 'gemini-pro';
+const model = 'gemini-1.0-pro';
 let generativeModel = null;
 
 // Instantiate the models

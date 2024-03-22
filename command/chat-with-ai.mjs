@@ -253,7 +253,7 @@ start.template = async (templateSourceJsonFilePath=null, initParameters = {}
 export const { chat } = ai;
 
 export async function process({ input, joinedInput: aiChatInput, settings = {} }) {
-  const { aiChatSettings, initParameters = {}, isNew = false } = settings;
+  let { aiChatSettings, initParameters = {}, isNew = false } = settings;
   initParameters.newDefaultStdout ||= cli.output;
   initParameters.newDefaultConsole ||= cli.output;
   if (input.length==0)
