@@ -51,8 +51,8 @@ async function init() {
             preResponse(responseWriteJSON, requestData)(res, uidInfo);
             const chatStdout = getChatStdout(res, uidInfo, response(responseWriteJSON));
             const routeActions = request(requestData, { chatStdout, sessionId });
-            
             for (let action of routeActions) {
+                action.executeCommandSettings.apiCallSettings = {req, res: chatStdout, sessionId};
                 await fusionHub.executeCommand(action.executeCommand, action.executeCommandSettings, action.executeCommandExtensiveInputBuffer);
             }
             
