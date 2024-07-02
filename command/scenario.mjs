@@ -104,9 +104,9 @@ function pickRandomStrings(array, count, retainArray = []) {
 
 /*'**Axe**: Can be used to destroy the surveillance camera that is causing the glitch, thus stopping the transmission of the laughter and preventing the disruption of order.\n\n**Tarp**: Can be used to create a makeshift shelter or barrier to hide the laughing citizen from view, buying time to find a more permanent solution.\n\n**Flashlight**: Can be used to signal for help or to distract the authorities while the laughing citizen is hidden or moved to a safer location.\n\n```\n['Axe', 'Tarp', 'Flashlight']\n```'*/
 
-const attemptSolution = async (items, aiChatSettings, additionalInfo='', instructions=null) => {
+const attemptSolution = async (_usableItems, aiChatSettings, additionalInfo='', instructions=null) => {
   const totalAttempts = 5;
-  const getResponse = async (instructions) => await chat(instructions || `${scenario}\nIdentify which 3 of following items would best solve the problem in this scenario${additionalInfo}: ${shuffle(items).join(", ")}\nMake sure you explain why the items solve the  double asterisks (**) around each of the 3 items used and ONLY us. At the end of your response, list the 3 items you used as if they were a node JS array, example: ['item1','item2','item3'] `, {
+  const getResponse = async (instructions, isPersistent) => await chat(instructions || `${scenario}\nIdentify which 3 of following items would best solve the problem in this scenario${additionalInfo}: ${shuffle(_usableItems).join(", ")}\nMake sure you explain why the items solve the  double asterisks (**) around each of the 3 items used and ONLY us. At the end of your response, list the 3 items you used as if they were a node JS array, example: ['item1','item2','item3'] `, {
     ...aiChatSettings,
     chatStdout: {
       write: () => {}
@@ -114,16 +114,19 @@ const attemptSolution = async (items, aiChatSettings, additionalInfo='', instruc
     isPersistent: false
   });
   let response,filteredResponse,attemptNum=0, note='';
-  const usableItemsSorted = JSON.parse(JSON.stringify(items)).sort((a, b) => b.length - a.length);
+  const usableItemsSorted = JSON.parse(JSON.stringify(_usableItems)).sort((a, b) => b.length - a.length);
   correction=instructions;
+  let isPersistent=false;
   do {
-    response = await getResponse(correction);
+    response = await getResponse(correction, isPersistent);
+    //console.log("initialResponse",response)
+    isPersistent=true;
     filteredResponse = response.split(/[\[\]]/g);
     solutionItems = [];
     if (filteredResponse.length==3) {
       for (let i = 0; i < usableItemsSorted.length; i++) {
-        if (!solutionItems.includes(items[i]) && filteredResponse[1].replace(/\-/g,' ').replace(/a[n]? /g,'').replace('the ','').toLowerCase().replace(/[^a-z,`"']/g, ' ').trim().match(new RegExp("['\"`]" + items[i].replace(/\-/g,' ') + "['\"`]", "g"))) {
-          solutionItems.push(items[i]);
+        if (!solutionItems.includes(_usableItems[i]) && filteredResponse[1].replace(/\-/g,' ').replace(/(^|[^a-z])a[n]? /g,'$1').replace('(^|[^a-z])the ','$1').toLowerCase().replace(/[^a-z,`"']/g, ' ').trim().match(new RegExp("['\"`]" + _usableItems[i].replace(/\-/g,' ') + "['\"`]", "g"))) {
+          solutionItems.push(_usableItems[i]);
         }
       }
     } else {
@@ -135,17 +138,19 @@ const attemptSolution = async (items, aiChatSettings, additionalInfo='', instruc
     }
     wrongItemUsed = [];
     for (let i = 0; i < solutionItems.length; i++) {
-      if (!items.includes(solutionItems[i])) {
+      if (!_usableItems.includes(solutionItems[i])) {
         wrongItemUsed.push(solutionItems[i]);
       }
     }
     if (wrongItemUsed.length > 0)
-      correction = `Incorrect. You can't use: ${wrongItemUsed.join(", ")}. You can ONLY use: ${shuffle(items).join(", ")}. Try again.`;
-    else
-      correction = null;
+      correction = `Incorrect. You can't use: ${wrongItemUsed.join(", ")}. You can ONLY use: ${shuffle(_usableItems).join(", ")}. Try again.`;
+    else if (solutionItems.length != 3)
+      correction = `Sorry I didn't get those 3 items correctly. Make sure to spell the items as they appeared in the list you obtained it from: ${shuffle(_usableItems).join(", ")}\nAlso, make sure you provide the node JS array. Example: ['item1','item2','item3']`;
+    //console.log("CORRECTION:",correction)
   } while ((!response || response.length < 32 || filteredResponse.length != 3 || solutionItems.length!=3 || correction) && attemptNum++ < totalAttempts);
   solutionItems=solutionItems.slice(0,3);
   response=filteredResponse[0].replace(/```( )?[^ ]*/g,'').replace(/```( )?/g,'');
+  //console.log("solution", solutionItems);
   if (attemptNum > totalAttempts) {
     return null;
   }
@@ -170,6 +175,7 @@ export async function start(selectedThemes=null, settings = {}) {
   initParameters.newDefaultStdout ||= cli.output;
   initParameters.newDefaultConsole ||= cli.output;
   roundComplete = false;
+  
   if (!scenario)
     await aiStart.new({
       initParameters
@@ -177,8 +183,9 @@ export async function start(selectedThemes=null, settings = {}) {
   else if (!scenario) {
     return;
   }
+  
   if (p.usableItems.length < optionsCount)
-    p.usableItems = pickRandomStrings(allAvailableItems, optionsCount - p.usableItems.length, p.usableItems);
+    p.usableItems = pickRandomStrings(allAvailableItems, optionsCount, p.usableItems);
 
   const getNum = () => Math.floor(Math.random() * 9999) + 1;
   const scenarioInsructions = getNum() + `. Provide a short one-sentence ${pickRandomStrings(selectedThemes || problemThemes, 1)[0]} themed scenario with a problem that needs to be solved quickly. Make the scenario as unique as possible but keep it realistic. DO NOT provide the items, ONLY state the problem.`;
@@ -189,6 +196,7 @@ export async function start(selectedThemes=null, settings = {}) {
       
     }
   });
+
   scenario = await getScenario();
   let attemptNum = 0;
   while ((!scenario || scenario.length < 16) && attemptNum++ < optionsCount)
@@ -247,7 +255,7 @@ export async function process({
   const reusableItems = [];
   if (isNew)
     await start.new(settings)
-  if (input.length == 0 || (input.length == 1 && (input[0] == 'a') || input[0] == 'ai')) {
+  if (input.length == 0 || (input.length < 3 && (input[0] == 'a') || input[0] == 'ai')) {
     if (input[1] > 7 || input[1] < 0) {
       cli.output.print('Difficulty setting is outside of range. Pick a difficulty from 0 to 7.');
       return;
@@ -257,11 +265,14 @@ export async function process({
       return;
     }
     cli.output.print(`${fgBlue}\nThinking...${reset}\n`);
-    p.usableItems = pickRandomStrings(allAvailableItems, optionsCount + (input[1] || difficulty), p.usableItems);
-    const result = await attemptSolution(shuffle(p.usableItems).slice(0,9+difficulty), aiChatSettings);
+    p.usableItems = pickRandomStrings(allAvailableItems, optionsCount + (Number(input[1]) || difficulty), p.usableItems);
+    const result = await attemptSolution(p.usableItems, aiChatSettings);
+    //console.log("Items", p.usableItems)
+    //console.log("Thought",result)
     if (result) {
       p.usableItems = p.usableItems.slice(0,9);
-      input=[p.usableItems.indexOf(solutionItems[0]),p.usableItems.indexOf(solutionItems[1]),p.usableItems.indexOf(solutionItems[2])];
+      input=[(p.usableItems.indexOf(solutionItems[0])+1).toString(),(p.usableItems.indexOf(solutionItems[1])+1).toString(),(p.usableItems.indexOf(solutionItems[2])+1).toString()];
+      //console.log(input);
     } else {
       cli.output.print(`${fgYellow}Player ${playerNum} has requested a new scenario.${reset}`)
       return;
@@ -360,7 +371,7 @@ export async function process({
           cli.output.print(`\nFirst-round handicap:`);
           for (let n = 1; n < playersCount+1; n++) {
             if (players[n].pointsReceived==0) {
-              players[n].usableItems=pickRandomStrings(allAvailableItems, (optionsCount+1) - players[n].usableItems.length, players[n].usableItems);
+              players[n].usableItems=pickRandomStrings(allAvailableItems, (optionsCount+1), players[n].usableItems);
               cli.output.print(`${fgBlue}Player ${n} gets an extra item.${reset}`);
             }
           }
@@ -371,7 +382,7 @@ export async function process({
         players[playerNum] ||= new Player();
         const p2 = players[playerNum];
         if (p2.usableItems.length < optionsCount)
-          p2.usableItems = pickRandomStrings(allAvailableItems, optionsCount - p2.usableItems.length, p2.usableItems);
+          p2.usableItems = pickRandomStrings(allAvailableItems, optionsCount, p2.usableItems);
         cli.output.print(`${scenario}\n\nThings that player ${playerNum} can use to solve the problem (pick 3):\n`);
         for (let i = 1; i < p2.usableItems.length + 1; i++) {
           cli.output.print(i + ". " + p2.usableItems[i - 1]);
