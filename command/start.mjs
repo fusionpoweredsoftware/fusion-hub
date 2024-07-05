@@ -53,9 +53,9 @@ export async function startCommandModule(input, joinedInput='', settings) {
                     if (result) {
                         cli.properties.commandMode = commandModule.command.id;
                         if (result===true)
-                            log(`${capitalizeFirstLetter(startType)} ${commandModule.command.name} started.`);
+                            log(`${capitalizeFirstLetter(startType).replace(/[-]/g, ' ')} ${commandModule.command.name} started.`);
                         else
-                            log(`${capitalizeFirstLetter(result)} started.`);
+                            log(`${capitalizeFirstLetter(result).replace(/[-]/g, ' ')} started.`);
                     }
                 } else {
                     cliErrors.invalidStartTypeError();
@@ -68,9 +68,9 @@ export async function startCommandModule(input, joinedInput='', settings) {
                     cli.properties.commandMode = commandModule.command.id;
                     if (isCommandStartLogged) {
                         if (result===true)
-                            cli.output.log(`${capitalizeFirstLetter(commandModule.command.name)} started.`);
+                            cli.output.log(`${capitalizeFirstLetter(commandModule.command.name).replace(/[-]/g, ' ')} started.`);
                         else
-                            cli.output.log(`${capitalizeFirstLetter(result)} started.`);
+                            cli.output.log(`${capitalizeFirstLetter(result).replace(/[-]/g, ' ')} started.`);
                     }
                 }
                 matchFound=true;
