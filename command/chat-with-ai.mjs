@@ -239,7 +239,7 @@ start.send = async (filename, initParameters = {}
   return false;
 }
 
-start.template = async (templateSourceJsonFilePath=null, initParameters = {}
+start.templated = async (templateSourceJsonFilePath=null, initParameters = {}
   ) => {
   initParameters.newDefaultStdout ||= cli.output;
   initParameters.newDefaultConsole ||= cli.output;
@@ -248,6 +248,22 @@ start.template = async (templateSourceJsonFilePath=null, initParameters = {}
     return true;
   }
   return false;
+}
+
+
+start["new-templated"] = async (templateDestinationJsonFilePath=null) => {
+  if (!templateDestinationJsonFilePath) {
+    cliErrors.noArgumentsSuppliedError(1);
+    return false;
+  }
+  else if (typeof templateDestinationJsonFilePath !== 'string') {
+    cliErrors.argumentsLimitError(1);
+    return false;
+  }
+  const expandedTemplateDestinationJsonFilePath = await expandFilePath(templateDestinationJsonFilePath, { contextDir: 'templates'});
+  await fs.copyFile(await getCurrentChatHistoryFilePath(), expandedTemplateDestinationJsonFilePath);
+  cli.output.log("Template created: "+expandedTemplateDestinationJsonFilePath);
+  return true;
 }
 
 export const { chat } = ai;
