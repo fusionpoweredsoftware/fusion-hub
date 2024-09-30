@@ -5,7 +5,7 @@
 
 //script:
 /*(response,text)
-chat-with-ai ${app.input}*/
+chat-with-ai-online ${app.input}*/
 
 const speakableResponse = response.replace(/[^a-zA-Z0-9:;&\.?!\(\)\[\]\"\'\{\}\/\-\n ]/g,'').split(/\n\n/g);
 

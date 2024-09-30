@@ -4,7 +4,7 @@
 //STOP
 //script:
 
-/*start chat-with-ai*/
+/*start chat-with-ai-online*/
 
 /*(translationData, UIDMD)
 This is not a conversation. I only want you to translate this text in quotes to Spanish: 
