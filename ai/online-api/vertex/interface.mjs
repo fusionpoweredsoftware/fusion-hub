@@ -28,7 +28,7 @@ let currentChatHistoryFilePath = './.ai-chat-history.json';
 let isInitialized = {};
 let defaultConsole = console;
 let defaultStdout = process.stdout;
-let defaultChatInstructions = instructions.defaultAiInstructionsForConversationStart;
+let defaultChatInstructions = instructions.defaultAiInstructionsForConversationStart['vertex'];
 
 export const checkInitialized = (sessionId) => {
   return isInitialized[sessionId];

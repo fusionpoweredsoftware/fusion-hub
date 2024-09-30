@@ -21,9 +21,15 @@
     "@google-cloud/text-to-speech": "^5.0.2",
     "@google-cloud/vertexai": "^0.2.0",
     "ai": "./ai",
+    "axios": "^1.7.5",
     "color-json": "^3.0.5",
     "express": "^4.19.1",
     "json5": "^2.2.3",
+    "llama-tokenizer-js": "^1.2.2",
+    "llama3-tokenizer-js": "^1.2.0",
+    "lodash": "^4.17.21",
+    "lowdb": "^7.0.1",
+    "ollama": "^0.5.8",
     "play-sound": "^1.1.6"
   }
 }

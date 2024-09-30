@@ -3,7 +3,7 @@ export const settings = {
     name: process.env.FUSION_HUB_INSTANCE_NAME || 'Fusion Hub',
     port: process.env.FUSION_HUB_INSTANCE_PORT || 3000,
     preconfigure: async (fusionHub, preconfigurationSettings) => {
-        await fusionHub.executeCommand('chat-with-ai', { isNew: true, ...preconfigurationSettings });
+        await fusionHub.executeCommand('chat-with-ai-online', { isNew: true, ...preconfigurationSettings });
     },
     handleListeningStarted: (webApiName, webApiPort, cli) => {
        cli.output.log(`${webApiName} is listening on port ${webApiPort}`);
@@ -14,10 +14,10 @@ export const settings = {
 }
 export default {
     routes: {
-        'chat-with-ai': {
+        'chat-with-ai-online': {
             preRequest: (route) => cli.output.log(`Listening for /${route} requests...`),
             request: (request, defaultRequestSettings) => [{
-                executeCommand: `chat-with-ai ${request.message}`,
+                executeCommand: `chat-with-ai-online ${request.message}`,
                 executeCommandSettings: {aiChatSettings: defaultRequestSettings, initParameters: defaultRequestSettings}
             }],
             preResponse: (responseWrite, request) => ((res, { sessionId, responseId }) => responseWrite(res, {request: request.message, responseId, sessionId})),

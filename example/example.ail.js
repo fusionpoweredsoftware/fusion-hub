@@ -46,7 +46,7 @@ async function writeOutGameJson(gameJson,gameJsonFile=script.json.gameJsonFileNa
 let randNum = Math.floor(Math.random()*1000000000000);
 
 /*
-start new chat-with-ai game-design-conversation-${randNum}.json
+start new chat-with-ai-online game-design-conversation-${randNum}.json
 */
 let myGameJSON;
 if (script.json.isContinuing) {

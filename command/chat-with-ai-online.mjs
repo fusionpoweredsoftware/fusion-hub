@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import _fs from "fs";
 import instructions from 'fusion-hub/ai/instructions';
-import { currentAiApiName } from "fusion-hub/variables";
+import { currentOnlineAiApi } from "fusion-hub/variables";
 import { getCurrentChatHistoryFilePath, getChatHistoryDirPath, getCommandModeHistoryFilePath } from "fusion-hub/paths";
 import { expandFilePath, extractJSONFilename, addPeriodToBasename  } from "fusion-hub/functions";
 import setup from "fusion-hub/setup";
@@ -9,10 +9,10 @@ import cli, { output } from "fusion-hub/cli";
 import path from 'path';
 
 export const command = {
-  id: "chat-with-ai",
+  id: "chat-with-ai-online",
   name: "chat with AI",
   description: "Send a message to the AI. Returns the AI's response.",
-  examples: `chat-with-ai Hello, Mr. AI!`,
+  examples: `chat-with-ai-online Hello, Mr. AI!`,
   isInputCaseSensitive: true,
   isStartable: true
 };
@@ -20,7 +20,7 @@ export const command = {
 setup.settings['current-input-history-file-path'] ||= null;
 
 const cliErrors = cli.errors;
-const ai = await import('fusion-hub/ai/api/'+currentAiApiName);
+const ai = await import(`fusion-hub/ai/${currentOnlineAiApi.name}/interface`);
 ai.setCurrentChatHistory((await getCurrentChatHistoryFilePath()));
 
 export async function start({

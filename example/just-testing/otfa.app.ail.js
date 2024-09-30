@@ -11,7 +11,7 @@ await otfa.process({
         let type = '';
         if (app.settings.theme)
             type=`${app.settings.theme} themed `
-        /*(response,UIDMD:20240128T061128170Z,-textAdventureGameResponse,-pointsAcquired,command) chat-with-ai Respond in UIDMD notation like I'm playing a ${type}text adventure. Do not provide the possible choices for the player. Rather, let the player explore freely. My command is: ${input}${explanation}*/;
+        /*(response,UIDMD:20240128T061128170Z,-textAdventureGameResponse,-pointsAcquired,command) chat-with-ai-online Respond in UIDMD notation like I'm playing a ${type}text adventure. Do not provide the possible choices for the player. Rather, let the player explore freely. My command is: ${input}${explanation}*/;
         return response;
     },
     ai, app, input, output

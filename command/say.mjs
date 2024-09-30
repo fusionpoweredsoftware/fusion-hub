@@ -37,12 +37,12 @@ function playSound(outputFile) {
  
 async function synthesizeSpeech(text, name, isSync=false) {
 
-  const outputFile = await expandFilePath(`~~~/output-${md5(text)}-${name}.mp3`, { contextDir: "tts"});
+  const outputFile = await expandFilePath(`~~~/output-${md5(text)}-${name}.wav`, { contextDir: "tts"});
   const createFile = async () => {
     if (!_fs.existsSync(outputFile)) {
       const input = { text };
       const voice = { languageCode: 'en-US', name };
-      const audioConfig = { audioEncoding: 'MP3', speakingRate: 1 };
+      const audioConfig = { audioEncoding: 'LINEAR16', speakingRate: 1 };
 
       const request = {
           input: input,

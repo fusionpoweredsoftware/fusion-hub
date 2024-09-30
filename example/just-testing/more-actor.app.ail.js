@@ -57,7 +57,7 @@ async function getActor({isRetry=false, rulesEmphasis}={}) {
         ***plaintext (20240128T061128170Z:response)
         (20240128T061128170Z:response)`;
     }
-    /*(actor,UIDMD:20240128T061128170Z,-person,-biosignature,-rules,input) chat-with-ai I have provided you with the person, biosignature, rules, and input code blocks using UIDMD notation. You are to provide the response code block using UIDMD notation, as if you were ${person}.${explanation}*/
+    /*(actor,UIDMD:20240128T061128170Z,-person,-biosignature,-rules,input) chat-with-ai-online I have provided you with the person, biosignature, rules, and input code blocks using UIDMD notation. You are to provide the response code block using UIDMD notation, as if you were ${person}.${explanation}*/
     
     //kludge
     if (isObject(actor) && (NONENGLISH_CHARACTERS_DETECTED.characters=extractContinuousJapaneseAndChinese(actor["*"])).length>0) {

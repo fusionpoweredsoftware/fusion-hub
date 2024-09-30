@@ -25,7 +25,7 @@ let lastVarType = null;
 let lastOutput = null;
 let lastSettings = null;
 
-export const escapedCommand = {
+export const command = {
     id: "multi-command",
     name: "multi-command",
     description: "Run multiple commands from a file.",
@@ -39,7 +39,7 @@ export async function process({input, joinedInput, settings = {}}) {
     const filePath = input[0];
     if (input.length < 1 || filePath == '')
     {
-        log(escapedCommand.examples);
+        log(command.examples);
         return;
     }
     settings.aiChatSettings ||= {};

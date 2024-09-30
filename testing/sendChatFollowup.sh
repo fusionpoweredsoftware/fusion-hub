@@ -1,1 +1,1 @@
-curl -N -s -X POST -H "Content-Type: application/json" -d "{\"message\": \"${2:-tell me more}\"}" http://localhost:3000/chat-with-ai/$1
+curl -N -s -X POST -H "Content-Type: application/json" -d "{\"message\": \"${2:-tell me more}\"}" http://localhost:3000/chat-with-ai-online/$1

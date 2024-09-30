@@ -8,8 +8,8 @@ const { errors: cliErrors, properties: cliProperties } = cli;
 export const command = {
     id: "start",
     name: "start",
-    description: "Start a session with startable commands like chat-with-ai.",
-    examples: `start (new|old|last)? chat-with-ai`,
+    description: "Start a session with startable commands like chat-with-ai-online.",
+    examples: `start (new|old|last)? chat-with-ai-online`,
     isInputCaseSensitive: true,
     isStartable: false
   };
