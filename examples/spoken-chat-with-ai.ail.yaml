@@ -1,0 +1,12 @@
+name: Spoken chat with AI
+description: Chats with the AI and reads each paragraph of the reply aloud.
+steps:
+  - id: response
+    prompt: ${input}
+  - foreach: ${response}
+    split: "\n\n"
+    as: paragraph
+    steps:
+      - print: ${paragraph}
+      - say: ${paragraph}
+        sync: true

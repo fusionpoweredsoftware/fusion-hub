@@ -1,0 +1,131 @@
+name: Adventure game designer
+description: >
+  Designs a 1990s-style text adventure (story, chapters, objectives, rooms,
+  puzzles, items and characters) and saves it as JSON. The line you type is
+  extra direction for the designer. Settings: theme, stipulations, file.
+variables:
+  N: 3
+  E: 5
+  theme: ${settings.theme | default:randomly chosen}
+  file: ${settings.file | default:gameDefinition.json}
+  goal: >
+    We are designing a 1990s style text adventure game (with no graphics right now) in ENGLISH ONLY.
+    Give a game story for a ${theme} themed text adventure game with a background story followed by
+    ${N} chapters. ${input} Create as much original content as possible and avoid using trademarks
+    unless elements are directly referenced in the theme. The background story section should be
+    titled "Background Story" and each chapter i should be titled like "Chapter i: <name of chapter i>".
+    Each chapter must have an ultimate goal composed of a series of at most ${E} objectives. Each
+    objective must access a series of rooms (rooms encountered before, rooms unlocked by solving
+    earlier puzzles, or rooms found by exploring), and the objectives should flow nicely from one
+    chapter to the next. Each objective is a series of adventure game puzzles: problems solved by
+    finding or combining items, using items, talking to characters, or exploring new rooms. Players
+    can carry an unrealistically large inventory, as in 1990s adventure games. Puzzles depend only on
+    puzzles of the current objective and must be solved in a specific order. Rooms are physical
+    locations or cut scenes such as a long journey, and must connect to other rooms. Keep chapters
+    short for now (1 paragraph per objective); they will be expanded later. Game play starts after
+    the background story. In the final chapter, chapter ${N}, the game should culminate in a grand
+    accomplishment so the player feels they have won. ${settings.stipulations}
+steps:
+  - id: roughDraft
+    prompt: "${goal} Write the background story followed by chapter 1 through chapter ${N} now."
+
+  - id: story
+    prompt: >
+      That's a good start! Let's try it again though. This time, double-check for grammar mistakes and
+      clean up the story description a little. Make sure you include ALL of the elements of the theme,
+      even if you have to rewrite the story: ${theme}. Check that ALL your chapters are there, and
+      follow the same rules as before: ${goal}
+
+  - id: game
+    output: json
+    require: [title, gameBackgroundStory, chapters]
+    retries: 5
+    prompt: >
+      Good brainstorming session! Now put the story design you just came up with into a standard JSON
+      object of the form
+      {"title": "<title>", "gameBackgroundStory": "<background story>",
+       "chapters": [{"chapterTitle": "<chapter 1 title>", "chapterText": "<chapter 1 text>"}, ...]}
+      with exactly ${N} chapters. Do not expand the chapters yet: each chapterText must contain all of
+      the text you wrote for that chapter, copied verbatim. Do not write "..." in your response.
+
+  - foreach: ${game.chapters}
+    as: chapter
+    steps:
+      - id: details
+        output: json
+        require: [chapterObjective, objectives]
+        ephemeral: true
+        prompt: >
+          For reference, this is the story: ${game.gameBackgroundStory} ${game.chapters | json}
+          Expand chapter ${chapter.chapterTitle} into a standard JSON object of the form
+          {"chapterObjective": "<chapter objective>", "objectives": [{"objectiveDescription": "<objective>",
+          "pointsGained": <points>}, ...]}. Do not leave out any objectives or write "...".
+      - set:
+          chapter.details: ${details}
+
+      - foreach: ${details.objectives}
+        as: objective
+        steps:
+          - id: rooms
+            output: json
+            require: [newRooms]
+            ephemeral: true
+            prompt: >
+              For reference, this is the story: ${game.gameBackgroundStory}
+              For chapter ${chapter.chapterTitle} and objective "${objective.objectiveDescription}", create a
+              standard JSON object {"newRooms": [{"roomName": "<name>", "roomDescription": "<description>",
+              "isLongJourney": <boolean>, "outgoingConnectedRooms": ["<room name>", ...],
+              "pointsGained": <points>}, ...]} listing every new room this objective unlocks. Players do
+              not know about these rooms until they explore them. Connected rooms should be physically
+              nearby, or (rarely) a long journey; a long-journey room has exactly one outgoing room. Rooms
+              have about 4 connections on average. Fill in the arrays completely; never write "...".
+          - id: puzzles
+            output: json
+            require: [puzzles]
+            ephemeral: true
+            prompt: >
+              For chapter ${chapter.chapterTitle} and objective "${objective.objectiveDescription}", create a
+              standard JSON object {"puzzles": [{"puzzleName": "<name>", "puzzleDescription": "<detailed
+              description of what must be accomplished>", "pointsGained": <points>}, ...]} with every
+              puzzle needed to complete the objective, in the order they must be solved. Never write "...".
+          - set:
+              objective.newRooms: ${rooms.newRooms}
+              objective.puzzles: ${puzzles.puzzles}
+
+          - foreach: ${objective.newRooms}
+            as: room
+            steps:
+              - id: items
+                output: json
+                require: [items]
+                ephemeral: true
+                prompt: >
+                  For chapter ${chapter.chapterTitle}, objective "${objective.objectiveDescription}" and room
+                  ${room.roomName}, list every item originally found in this room as a standard JSON object
+                  {"items": [{"name": "<item>", "description": "<description>", "commandList": [{"command":
+                  "<action the player performs>", "prerequisites": ["<prerequisite>", ...],
+                  "gameWorldStateChange": ["<state change>", ...], "pointsGained": <points>}, ...]}, ...]}.
+                  If an item can be picked up, include a command for that. Every action is a separate
+                  command, and prerequisites are listed in the order they must be accomplished. You may add
+                  a few unnecessary items to make the game more challenging. Never write "...".
+              - id: characters
+                output: json
+                require: [characters]
+                ephemeral: true
+                prompt: >
+                  For chapter ${chapter.chapterTitle}, objective "${objective.objectiveDescription}" and room
+                  ${room.roomName}, list the unique characters found in this room as a standard JSON object
+                  {"characters": [{"name": "<name>", "description": "<description>", "conditions": "<when the
+                  character is here>", "characterTalkingTopics": [{"topic": "<topic>", "characterSays":
+                  "<what they say>", "prerequisites": ["<prerequisite>", ...], "gameWorldStateChange":
+                  ["<state change>", ...], "pointsGained": <points>}, ...]}, ...]}. Use an empty array if
+                  nobody is here. Never write "...".
+              - set:
+                  room.items: ${items.items}
+                  room.characters: ${characters.characters}
+              - save: ${file}
+                value: ${game}
+
+  - save: ${file}
+    value: ${game}
+  - print: "Game definition created successfully: ${file}"

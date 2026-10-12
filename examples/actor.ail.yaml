@@ -1,0 +1,12 @@
+name: Actor
+description: >
+  The AI answers in character as an actor from actors.json.
+  Settings: id (e.g. EINSTEIN, BIO_SEARCH, or OLD:NEW to rename), person,
+  biosignature, voice (male, female or auto to speak the reply).
+steps:
+  - id: reply
+    actor:
+      id: ${settings.id}
+      person: ${settings.person}
+      biosignature: ${settings.biosignature}
+      voice: ${settings.voice}

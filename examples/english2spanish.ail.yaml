@@ -1,0 +1,28 @@
+name: English to Spanish
+description: Translates each line you type into Spanish.
+steps:
+  - id: translation
+    output: json
+    require: [translationToSpanish, isEnglishToSpanishTranslation]
+    retries: 5
+    ephemeral: true
+    prompt: |
+      This is not a conversation. I only want you to translate this text in quotes to Spanish:
+      "${input}"
+
+      Please reply in JSON format. For example:
+      {
+        "english": "<words in quote>",
+        "translationToSpanish": "<translate english into spanish>",
+        "isEnglishToSpanishTranslation": <boolean confirming that the english was translated into spanish>
+      }
+
+      So, for example, if a user says "Hi! I know spanish!" you would return:
+      {
+        "english": "Hi! I know spanish!",
+        "translationToSpanish": "¡Hola! ¡Sé español!",
+        "isEnglishToSpanishTranslation": true
+      }
+  - fail: Unable to translate.
+    unless: ${translation.isEnglishToSpanishTranslation}
+  - print: ${translation.translationToSpanish}
