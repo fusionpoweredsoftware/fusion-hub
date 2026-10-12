@@ -1,0 +1,10 @@
+name: Re-actor
+description: >
+  Several actors discuss the topic you type, taking turns.
+  Settings: ids (list, default EINSTEIN and EARHART), rounds (default 1), voice.
+steps:
+  - id: discussion
+    actor:
+      ids: ${settings.ids | default:EINSTEIN,EARHART}
+      rounds: ${settings.rounds | default:1}
+      voice: ${settings.voice}

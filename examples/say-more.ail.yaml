@@ -1,0 +1,5 @@
+name: Say more
+description: Speaks each line you type.
+steps:
+  - say: ${input}
+    voice: ${settings.voice}

@@ -1,0 +1,18 @@
+name: Text adventure
+description: >
+  Play a text adventure; each line is your command. Type "start new game" to begin.
+  Settings: theme.
+steps:
+  - id: turn
+    output: uidmd
+    require: [textAdventureGameResponse]
+    prompt: >
+      Respond like I'm playing a ${settings.theme | default:fantasy} themed text adventure. Award no points at the
+      beginning of the game. Do not provide the possible choices or any directed decisions for the
+      player; let the player explore freely. Keep your response to 4 or 5 simple sentences, as it would
+      appear in a text adventure, and begin it with "You". Put the game's reply in the
+      textAdventureGameResponse block and whether the player made progress (+, 0 or -) in the
+      pointsAcquired block. My command is: ${input}
+  - print: ${turn.textAdventureGameResponse}
+  - print: "(progress: ${turn.pointsAcquired})"
+    when: ${turn.pointsAcquired}
