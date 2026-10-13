@@ -5,20 +5,48 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/fusionpoweredsoftware/fusion-hub/internal/history"
 )
 
-// Request is one chat completion.
+// Request is one chat completion. Generation parameters left zero come
+// from the provider's Config.
 type Request struct {
 	Model     string
 	System    string
 	Messages  []history.Message
 	MaxTokens int
+}
+
+// Legacy generation parameters (the original's generation_config).
+const (
+	DefaultMaxTokens   = 2048
+	DefaultTemperature = 0.9
+	DefaultTopP        = 1.0
+)
+
+// HTTPError is a provider error carrying the HTTP status.
+type HTTPError struct {
+	Status int
+	Msg    string
+}
+
+func (e *HTTPError) Error() string { return e.Msg }
+
+// IsRateLimited reports whether err is an HTTP 429 from a provider.
+func IsRateLimited(err error) bool {
+	var h *HTTPError
+	if errors.As(err, &h) && h.Status == http.StatusTooManyRequests {
+		return true
+	}
+	return isAnthropicStatus(err, http.StatusTooManyRequests)
 }
 
 // Provider streams a reply, calling onDelta for each text fragment, and
@@ -95,13 +123,15 @@ func Canonical(name string) (string, error) {
 	return n, nil
 }
 
-// Config is the resolved provider selection.
+// Config is the resolved provider selection and generation parameters.
 type Config struct {
-	Provider  string
-	Model     string
-	APIKey    string
-	BaseURL   string
-	MaxTokens int
+	Provider    string
+	Model       string
+	APIKey      string
+	BaseURL     string
+	MaxTokens   int
+	Temperature float64
+	TopP        float64
 }
 
 // Settings is the subset of the settings store the provider reads.
@@ -110,13 +140,25 @@ type Settings interface{ String(key string) string }
 // FromSettings resolves the provider from the settings keys
 // provider, model, base-url, <provider>-api-key, api-key and the
 // provider's environment variable, in that order of precedence for keys.
+// The generation parameters max-tokens, temperature and top-p default to
+// the legacy constants.
 func FromSettings(s Settings) (Config, error) {
 	name, err := Canonical(s.String("provider"))
 	if err != nil {
 		return Config{}, err
 	}
 	p := Presets[name]
-	cfg := Config{Provider: name, Model: s.String("model"), BaseURL: s.String("base-url"), MaxTokens: 16000}
+	cfg := Config{Provider: name, Model: s.String("model"), BaseURL: s.String("base-url"),
+		MaxTokens: DefaultMaxTokens, Temperature: DefaultTemperature, TopP: DefaultTopP}
+	if n, err := strconv.Atoi(strings.TrimSpace(s.String("max-tokens"))); err == nil && n > 0 {
+		cfg.MaxTokens = n
+	}
+	if f, err := strconv.ParseFloat(strings.TrimSpace(s.String("temperature")), 64); err == nil {
+		cfg.Temperature = f
+	}
+	if f, err := strconv.ParseFloat(strings.TrimSpace(s.String("top-p")), 64); err == nil {
+		cfg.TopP = f
+	}
 	if cfg.Model == "" {
 		cfg.Model = p.DefaultModel
 	}
