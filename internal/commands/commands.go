@@ -155,10 +155,14 @@ func (r *Registry) All() []*Command {
 }
 
 // Execute runs a line, routing it to the sticky command mode if one is
-// active. Blank lines do nothing.
+// active. Blank lines do nothing. When the REPL is locked to one command,
+// a line for any other command is silently ignored.
 func (r *Registry) Execute(ctx context.Context, env *Env, line string) (string, error) {
 	if mode := env.State.Mode(); mode != "" {
 		if strings.TrimSpace(line) == "" {
+			return "", nil
+		}
+		if lock := env.State.Locked(); lock != "" && lock != mode {
 			return "", nil
 		}
 		c := r.Get(mode)
@@ -170,18 +174,22 @@ func (r *Registry) Execute(ctx context.Context, env *Env, line string) (string, 
 	return r.Dispatch(ctx, env, line)
 }
 
-// Dispatch runs a line as "<command> <input>", ignoring command mode.
+// Dispatch runs a line as "<command> <input>", ignoring command mode. The
+// command word ends at the first space or tab.
 func (r *Registry) Dispatch(ctx context.Context, env *Env, line string) (string, error) {
 	line = strings.TrimSpace(line)
 	if line == "" {
 		return "", nil
 	}
-	name, rest, _ := strings.Cut(line, " ")
+	name, rest := line, ""
+	if i := strings.IndexAny(line, " \t"); i >= 0 {
+		name, rest = line[:i], line[i+1:]
+	}
+	if lock := env.State.Locked(); lock != "" && lock != strings.ToLower(name) {
+		return "", nil
+	}
 	c := r.Get(name)
 	if c == nil {
-		return "", ErrNotFound
-	}
-	if lock := env.State.Locked(); lock != "" && lock != c.ID {
 		return "", ErrNotFound
 	}
 	return r.run(ctx, env, c, strings.TrimSpace(rest))

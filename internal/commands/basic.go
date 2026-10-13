@@ -1,48 +1,54 @@
 package commands
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 
+	"github.com/fusionpoweredsoftware/fusion-hub/internal/config"
 	"github.com/fusionpoweredsoftware/fusion-hub/internal/provider"
 )
+
+// The help table: fixed column widths and separators.
+var (
+	helpCols = [3]int{13, 75, 34}
+	helpSep  = "  |  "
+	helpRule = "--|--"
+)
+
+// helpRow pads the three cells to the table's column widths.
+func helpRow(id, description, examples string) string {
+	return fmt.Sprintf("%-*s%s%-*s%s%-*s", helpCols[0], id, helpSep, helpCols[1], description, helpSep, helpCols[2], examples)
+}
 
 func help() *Command {
 	return &Command{
 		ID:          "help",
 		Name:        "help",
-		Description: "List the names, descriptions and examples of commands.",
-		Examples:    "help [command]",
+		Description: "List the names, descriptions, examples, and input attributes of commands.",
+		Examples:    "help",
 		Run: func(_ context.Context, env *Env, in Input) (string, error) {
-			var cmds []*Command
+			found := false
 			for _, c := range env.Registry.All() {
-				if len(in.Args) == 0 || c.ID == in.Args[0] {
-					cmds = append(cmds, c)
+				if len(in.Args) > 0 && c.ID != in.Args[0] {
+					continue
 				}
+				if !found {
+					env.Out.Print("")
+					env.Out.Print(helpRow("COMMAND", "DESCRIPTION", "EXAMPLES"))
+					env.Out.Print(strings.Repeat("-", helpCols[0]) + helpRule + strings.Repeat("-", helpCols[1]) + helpRule + strings.Repeat("-", helpCols[2]))
+					env.Out.Print(helpRow("", "", ""))
+				}
+				env.Out.Print(helpRow(c.ID, c.Description, c.Examples))
+				env.Out.Print(helpRow("", "", ""))
+				found = true
 			}
-			if len(cmds) == 0 {
-				return "", ErrNotFound
+			if !found {
+				env.Out.Print("Command not found.")
 			}
-			w := [3]int{len("COMMAND"), len("DESCRIPTION"), len("EXAMPLES")}
-			for _, c := range cmds {
-				w[0] = max(w[0], len(c.ID))
-				w[1] = max(w[1], len(c.Description))
-			}
-			row := func(a, b, c string) string {
-				return fmt.Sprintf("%-*s  |  %-*s  |  %s", w[0], a, w[1], b, c)
-			}
-			env.Out.Print("")
-			env.Out.Print(row("COMMAND", "DESCRIPTION", "EXAMPLES"))
-			env.Out.Print(strings.Repeat("-", w[0]+2) + "|" + strings.Repeat("-", w[1]+4) + "|" + strings.Repeat("-", 30))
-			for _, c := range cmds {
-				env.Out.Print(row(c.ID, c.Description, c.Examples))
-			}
-			env.Out.Print("")
-			env.Out.Print("Ctrl+C switches between CLI mode and the started command's mode; press it twice quickly to exit.")
 			return "", nil
 		},
 	}
@@ -65,7 +71,7 @@ func set() *Command {
 	return &Command{
 		ID:            "set",
 		Name:          "set",
-		Description:   "Set variables for commands to use (provider, model, API keys...), or list them.",
+		Description:   "Set a variables for commands to use, or see what is currently set.",
 		Examples:      "set (<key> as <val>|json(+)? <json>|nill <key>)",
 		CaseSensitive: true,
 		Run:           runSet,
@@ -76,16 +82,10 @@ func runSet(_ context.Context, env *Env, in Input) (string, error) {
 	s := env.Settings
 	switch {
 	case len(in.Args) == 0:
-		for _, k := range s.Keys() {
-			env.Out.Print(strings.ToUpper(k) + " AS " + mask(k, s.String(k)))
-		}
-		if len(s.Keys()) == 0 {
-			env.Out.Print("Nothing set. Try: set provider as claude")
-		}
+		env.Out.Print("<KEY> AS <VALUE>:\n\n" + settingsListing(s))
 		return "", nil
 	case in.Args[0] == "json" && len(in.Args) == 1:
-		b, _ := json.MarshalIndent(s.Snapshot(), "", "  ")
-		env.Out.Print("JSON:\n\n" + string(b))
+		env.Out.Print("JSON:\n\n" + compactJSON(s.Snapshot()) + "\n")
 		return "", nil
 	case in.Args[0] == "json" || in.Args[0] == "json+":
 		m := map[string]any{}
@@ -100,7 +100,8 @@ func runSet(_ context.Context, env *Env, in Input) (string, error) {
 		return "", s.Save()
 	case in.Args[0] == "nill":
 		if len(in.Args) < 2 {
-			return "", errors.New("No variable specified.")
+			env.Out.Print("No variable specified.")
+			return "", nil
 		}
 		s.Delete(in.Args[1])
 		env.Out.Print(in.Args[1] + " deleted.")
@@ -125,6 +126,42 @@ func runSet(_ context.Context, env *Env, in Input) (string, error) {
 		s.Set(key, val)
 	}
 	return "", s.Save()
+}
+
+// settingsListing renders the public settings as "key AS value" lines the
+// way the original derived them from the settings' JSON: the braces are
+// dropped, `":"` becomes ` AS `, commas become newlines and the remaining
+// quotes are removed (so non-string values appear as JSON). Keys are in
+// sorted order and API keys are masked.
+func settingsListing(s *config.Store) string {
+	var b strings.Builder
+	b.WriteString("{")
+	for i, k := range s.Keys() {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		v, _ := s.Get(k)
+		if strings.HasSuffix(k, "api-key") {
+			v = mask(k, s.String(k))
+		}
+		b.WriteString(compactJSON(k) + ":" + compactJSON(v))
+	}
+	b.WriteString("}")
+	text := strings.TrimSuffix(strings.TrimPrefix(b.String(), "{"), "}")
+	text = strings.ReplaceAll(text, `":"`, " AS ")
+	text = strings.ReplaceAll(text, ",", "\n")
+	return strings.ReplaceAll(text, `"`, "")
+}
+
+// compactJSON is JSON.stringify: compact and without HTML escaping.
+func compactJSON(v any) string {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return "null"
+	}
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 // parsePairs reads "k1 as v1 k2 as multi word v2" into pairs.
@@ -155,12 +192,14 @@ func parsePairs(args []string) ([][2]string, error) {
 	return out, nil
 }
 
+// mask hides an API key, keeping its last four characters when it is long
+// enough for that to give nothing away.
 func mask(key, val string) string {
-	if !strings.HasSuffix(key, "api-key") || len(val) <= 8 {
-		if strings.HasSuffix(key, "api-key") {
-			return "****"
-		}
+	if !strings.HasSuffix(key, "api-key") {
 		return val
+	}
+	if len(val) <= 8 {
+		return "****"
 	}
 	return "****" + val[len(val)-4:]
 }
@@ -169,8 +208,8 @@ func start() *Command {
 	return &Command{
 		ID:            "start",
 		Name:          "start",
-		Description:   "Start a session with a startable command (chat-with-ai, app-using-ai) and make it the command mode.",
-		Examples:      "start (new|old|last|recap|...)? chat-with-ai",
+		Description:   "Start a session with startable commands like chat-with-ai.",
+		Examples:      "start (new|old|last)? chat-with-ai",
 		CaseSensitive: true,
 		Run:           runStart,
 	}
@@ -196,27 +235,33 @@ func runStart(ctx context.Context, env *Env, in Input) (string, error) {
 	}
 	fn, ok := target.Start[startType]
 	if !ok {
-		var types []string
-		for t := range target.Start {
-			if t != "" {
-				types = append(types, t)
-			}
-		}
-		sort.Strings(types)
-		return "", fmt.Errorf("Unable to process command: Not a valid start type. %s accepts: %s", target.ID, strings.Join(types, ", "))
+		return "", errors.New("Unable to process command: Not a valid start type.")
 	}
-	msg, err := fn(ctx, env, rest)
+	result, err := fn(ctx, env, rest)
+	if errors.Is(err, ErrNotStarted) {
+		return "", nil
+	}
 	if err != nil {
 		return "", err
 	}
 	env.State.SetMode(target.ID)
-	if msg == "" {
-		msg = target.Name
-		if startType != "" {
-			msg = startType + " " + msg
-		}
+	var msg string
+	switch {
+	case result != "":
+		msg = startedName(result)
+	case startType != "":
+		msg = startedName(startType) + " " + target.Name
+	default:
+		msg = startedName(target.Name)
 	}
-	msg = strings.ReplaceAll(msg, "-", " ")
-	env.Out.Log("%s started.", strings.ToUpper(msg[:1])+msg[1:])
+	env.Out.Log("%s started.", msg)
 	return "", nil
+}
+
+// startedName capitalises the first letter and turns dashes into spaces.
+func startedName(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ReplaceAll(strings.ToUpper(s[:1])+s[1:], "-", " ")
 }
