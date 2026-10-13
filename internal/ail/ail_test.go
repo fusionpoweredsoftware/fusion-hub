@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/fusionpoweredsoftware/fusion-hub/examples"
 	"github.com/fusionpoweredsoftware/fusion-hub/internal/actors"
 	"github.com/fusionpoweredsoftware/fusion-hub/internal/output"
 	"github.com/fusionpoweredsoftware/fusion-hub/internal/tts"
@@ -114,12 +112,12 @@ func TestParseValidation(t *testing.T) {
 }
 
 func TestExamplesParse(t *testing.T) {
-	files, _ := fs.Glob(examples.FS, "*.ail.yaml")
+	files, _ := filepath.Glob("testdata/*.ail.yaml")
 	if len(files) < 6 {
 		t.Fatalf("only %d examples", len(files))
 	}
 	for _, f := range files {
-		b, _ := examples.FS.ReadFile(f)
+		b, _ := os.ReadFile(f)
 		if _, err := Parse(b); err != nil {
 			t.Errorf("%s: %v", f, err)
 		}
@@ -128,7 +126,7 @@ func TestExamplesParse(t *testing.T) {
 
 func load(t *testing.T, name string) *Pipeline {
 	t.Helper()
-	b, err := examples.FS.ReadFile(name)
+	b, err := os.ReadFile(filepath.Join("testdata", name))
 	if err != nil {
 		t.Fatal(err)
 	}

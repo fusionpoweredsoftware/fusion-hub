@@ -41,6 +41,13 @@ func TestFromSettings(t *testing.T) {
 	if cfg.APIKey != "specific" || cfg.Model != "m" {
 		t.Fatalf("precedence: %#v", cfg)
 	}
+	if cfg.MaxTokens != 2048 || cfg.Temperature != 0.9 || cfg.TopP != 1 {
+		t.Errorf("legacy generation defaults: %#v", cfg)
+	}
+	cfg, _ = FromSettings(settings{"provider": "ollama", "max-tokens": "512", "temperature": "0.2", "top-p": "0.5"})
+	if cfg.MaxTokens != 512 || cfg.Temperature != 0.2 || cfg.TopP != 0.5 {
+		t.Errorf("generation settings: %#v", cfg)
+	}
 	t.Setenv("DEEPSEEK_API_KEY", "")
 	if _, err := FromSettings(settings{"provider": "deepseek"}); err == nil {
 		t.Error("missing key accepted")
@@ -63,7 +70,7 @@ func TestOpenAICompatibleStream(t *testing.T) {
 		io.WriteString(w, "data: [DONE]\n\n")
 	}))
 	defer srv.Close()
-	p, _ := New(Config{Provider: "openai", BaseURL: srv.URL + "/v1", APIKey: "k", Model: "gpt-test"})
+	p, _ := New(Config{Provider: "openai", BaseURL: srv.URL + "/v1", APIKey: "k", Model: "gpt-test", Temperature: 0.9, TopP: 1})
 	var deltas []string
 	reply, err := p.Stream(context.Background(), Request{System: "sys", Messages: []history.Message{{Role: "user", Content: "hi"}}}, func(d string) { deltas = append(deltas, d) })
 	if err != nil || reply != "Hello" || len(deltas) != 2 {
@@ -71,6 +78,9 @@ func TestOpenAICompatibleStream(t *testing.T) {
 	}
 	if got.Model != "gpt-test" || !got.Stream || got.Messages[0].Role != "system" || got.Messages[1].Content != "hi" {
 		t.Errorf("request = %#v", got)
+	}
+	if got.MaxTokens != DefaultMaxTokens || got.Temperature != 0.9 || got.TopP != 1 {
+		t.Errorf("generation parameters = %#v", got)
 	}
 }
 
@@ -80,8 +90,16 @@ func TestOpenAIErrorStatus(t *testing.T) {
 	}))
 	defer srv.Close()
 	p, _ := New(Config{Provider: "xai", BaseURL: srv.URL})
-	if _, err := p.Stream(context.Background(), Request{Messages: []history.Message{{Role: "user", Content: "hi"}}}, nil); err == nil || !strings.Contains(err.Error(), "401") {
+	if _, err := p.Stream(context.Background(), Request{Messages: []history.Message{{Role: "user", Content: "hi"}}}, nil); err == nil || !strings.Contains(err.Error(), "401") || IsRateLimited(err) {
 		t.Fatalf("err = %v", err)
+	}
+	busy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "slow down", http.StatusTooManyRequests)
+	}))
+	defer busy.Close()
+	p, _ = New(Config{Provider: "xai", BaseURL: busy.URL})
+	if _, err := p.Stream(context.Background(), Request{Messages: []history.Message{{Role: "user", Content: "hi"}}}, nil); !IsRateLimited(err) {
+		t.Fatalf("429 not detected: %v", err)
 	}
 }
 
@@ -109,7 +127,7 @@ func TestClaudeStream(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	p, _ := New(Config{Provider: "claude", BaseURL: srv.URL, APIKey: "k", Model: "claude-opus-5-5", MaxTokens: 100})
+	p, _ := New(Config{Provider: "claude", BaseURL: srv.URL, APIKey: "k", Model: "claude-opus-5-5", MaxTokens: 100, Temperature: 0.9, TopP: 1})
 	msgs := []history.Message{{Role: "assistant", Content: "dropped: must start with user"}, {Role: "user", Content: "a"}, {Role: "user", Content: "b"}, {Role: "assistant", Content: "c"}, {Role: "user", Content: "d"}}
 	reply, err := p.Stream(context.Background(), Request{System: "sys", Messages: msgs}, nil)
 	if err != nil || reply != "Bonjour !" {
@@ -120,5 +138,12 @@ func TestClaudeStream(t *testing.T) {
 	}
 	if m := body["messages"].([]any); len(m) != 3 {
 		t.Errorf("messages not merged: %v", m)
+	}
+	// Temperature goes to the Claude API; top_p does not (rejected together).
+	if body["temperature"] != 0.9 || body["max_tokens"] != 100.0 {
+		t.Errorf("temperature/max_tokens = %v / %v", body["temperature"], body["max_tokens"])
+	}
+	if _, ok := body["top_p"]; ok {
+		t.Error("top_p sent to the Claude API")
 	}
 }

@@ -28,10 +28,12 @@ type oaMessage struct {
 }
 
 type oaRequest struct {
-	Model     string      `json:"model"`
-	Messages  []oaMessage `json:"messages"`
-	Stream    bool        `json:"stream"`
-	MaxTokens int         `json:"max_tokens,omitempty"`
+	Model       string      `json:"model"`
+	Messages    []oaMessage `json:"messages"`
+	Stream      bool        `json:"stream"`
+	MaxTokens   int         `json:"max_tokens,omitempty"`
+	Temperature float64     `json:"temperature"`
+	TopP        float64     `json:"top_p"`
 }
 
 type oaChunk struct {
@@ -46,9 +48,15 @@ type oaChunk struct {
 }
 
 func (o *openAI) Stream(ctx context.Context, req Request, onDelta func(string)) (string, error) {
-	body := oaRequest{Model: req.Model, Stream: true, MaxTokens: req.MaxTokens}
+	body := oaRequest{Model: req.Model, Stream: true, MaxTokens: req.MaxTokens, Temperature: o.cfg.Temperature, TopP: o.cfg.TopP}
 	if body.Model == "" {
 		body.Model = o.cfg.Model
+	}
+	if body.MaxTokens == 0 {
+		body.MaxTokens = o.cfg.MaxTokens
+	}
+	if body.MaxTokens == 0 {
+		body.MaxTokens = DefaultMaxTokens
 	}
 	if req.System != "" {
 		body.Messages = append(body.Messages, oaMessage{Role: "system", Content: req.System})
@@ -77,7 +85,7 @@ func (o *openAI) Stream(ctx context.Context, req Request, onDelta func(string)) 
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", fmt.Errorf("%s: %s: %s", o.cfg.Provider, resp.Status, strings.TrimSpace(string(msg)))
+		return "", &HTTPError{Status: resp.StatusCode, Msg: fmt.Sprintf("%s: %s: %s", o.cfg.Provider, resp.Status, strings.TrimSpace(string(msg)))}
 	}
 
 	var out strings.Builder

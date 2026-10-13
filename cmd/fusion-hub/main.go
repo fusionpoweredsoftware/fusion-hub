@@ -54,6 +54,7 @@ func run(args []string) error {
 		State:    &commands.State{},
 		Registry: reg,
 	}
+	env.Chat.Console = out
 
 	if len(args) > 0 && (args[0] == "serve" || args[0] == "--serve") {
 		return serve(env)
@@ -69,12 +70,33 @@ func run(args []string) error {
 func serve(env *commands.Env) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	srv := api.New(api.ConfigFrom(env.Settings), func(ctx context.Context, sessionID, message string, w io.Writer) error {
-		_, err := env.Chat.Send(ctx, sessionID, message, w, chat.SendOptions{})
-		return err
-	})
+	chats := apiChat{env: env}
+	srv := api.New(api.ConfigFrom(env.Settings), chats)
+	srv.Errorf = env.Out.Error
+	// Like the legacy server's preconfigure step: archive the default
+	// conversation and start a new one before listening.
+	if err := chats.New(ctx, ""); err != nil {
+		env.Out.Error("%v", err)
+	}
 	env.Out.Log("Listening for /chat-with-ai requests...")
 	return srv.ListenAndServe(ctx, func(name string, port int) {
 		env.Out.Log("%s is listening on port %d", name, port)
 	})
+}
+
+// apiChat drives the chat sessions for the HTTP API.
+type apiChat struct{ env *commands.Env }
+
+func (c apiChat) Send(ctx context.Context, sessionID, message string, out io.Writer) error {
+	_, err := c.env.Chat.Send(ctx, sessionID, message, out, chat.SendOptions{})
+	return err
+}
+
+// New runs "chat-with-ai" with no input for sessionID, which archives its
+// conversation and starts a new one, logging to the server console.
+func (c apiChat) New(ctx context.Context, sessionID string) error {
+	env := *c.env
+	env.SessionID = sessionID
+	_, err := c.env.Registry.Get("chat-with-ai").Run(ctx, &env, commands.Input{})
+	return err
 }

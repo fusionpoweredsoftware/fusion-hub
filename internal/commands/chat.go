@@ -4,24 +4,25 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 
 	"github.com/fusionpoweredsoftware/fusion-hub/internal/chat"
 )
+
+// errOneArgument is the original's noArgumentsSuppliedError(1).
+var errOneArgument = errors.New("Command takes 1 argument.")
 
 func chatWithAI() *Command {
 	return &Command{
 		ID:            "chat-with-ai",
 		Name:          "chat with AI",
-		Description:   "Send a message to the AI and stream its response. With no message, start a new chat.",
+		Description:   "Send a message to the AI. Returns the AI's response.",
 		Examples:      "chat-with-ai Hello, Mr. AI!",
 		CaseSensitive: true,
 		Start: map[string]StartFunc{
 			"":              startChat,
 			"new":           startNewChat,
 			"old":           startOldChat,
-			"last":          startUndo,
-			"undo":          startUndo,
+			"last":          startLast,
 			"recap":         startRecap,
 			"send":          startSend,
 			"templated":     startTemplated,
@@ -29,127 +30,102 @@ func chatWithAI() *Command {
 		},
 		Run: func(ctx context.Context, env *Env, in Input) (string, error) {
 			if in.Raw == "" {
-				_, err := newChat(ctx, env, "")
-				return "", err
+				return "", env.Chat.New(ctx, env.SessionID, "")
 			}
-			return env.Chat.Send(ctx, env.SessionID, in.Raw, env.Out, chat.SendOptions{})
+			_, err := env.Chat.Send(ctx, env.SessionID, in.Raw, env.Out, chat.SendOptions{})
+			return "", err
 		},
 	}
 }
 
-func startChat(_ context.Context, env *Env, _ []string) (string, error) {
-	if env.Chat.Exists(env.SessionID) {
-		env.Out.Log("Resuming chat with AI...")
-	} else {
-		env.Out.Log("Starting new chat with AI...")
-	}
-	env.Chat.Session(env.SessionID)
-	return "", nil
+func startChat(ctx context.Context, env *Env, _ []string) (string, error) {
+	return "", env.Chat.Start(ctx, env.SessionID)
 }
 
-func newChat(ctx context.Context, env *Env, saveAs string) (string, error) {
-	archived, err := env.Chat.New(ctx, env.SessionID, saveAs)
-	if err != nil {
-		return "", err
-	}
-	if archived != "" {
-		env.Out.Log("Previous conversation saved as: %s", filepath.Base(archived))
-	}
-	if saveAs != "" {
-		env.Out.Log("Current conversation will be saved as: %s", filepath.Base(saveAs))
-	}
-	return archived, nil
+// newChat starts a new conversation (archiving the current one), saving it
+// as name later when name is given. app.go uses it for "start new".
+func newChat(ctx context.Context, env *Env, name string) (string, error) {
+	return "", env.Chat.New(ctx, env.SessionID, name)
 }
 
 func startNewChat(ctx context.Context, env *Env, args []string) (string, error) {
-	saveAs := ""
 	if len(args) > 1 {
 		return "", errors.New("Command limited to 1 argument.")
 	}
+	name := ""
 	if len(args) == 1 {
-		saveAs = args[0]
+		name = args[0]
 	}
-	_, err := newChat(ctx, env, saveAs)
-	return "", err
+	return newChat(ctx, env, name)
 }
 
 func startOldChat(ctx context.Context, env *Env, args []string) (string, error) {
-	if len(args) != 1 {
-		return "", errors.New("Command takes 1 argument: the conversation file.")
+	if len(args) == 0 {
+		return "", errOneArgument
 	}
-	archived, err := env.Chat.Old(ctx, env.SessionID, args[0], false)
+	return "", env.Chat.Old(ctx, env.SessionID, args[0])
+}
+
+// logExchange prints a user input and a reply the way the original's
+// recap did, through the timestamped logger.
+func logExchange(env *Env, user, reply string) {
+	env.Out.Log("----------------")
+	env.Out.Log("user-chat-input>  %s", user)
+	env.Out.Log("----------------")
+	env.Out.Log("%s", reply)
+}
+
+func startLast(_ context.Context, env *Env, _ []string) (string, error) {
+	user, prev, ok, err := env.Chat.Undo(env.SessionID)
 	if err != nil {
 		return "", err
 	}
-	if archived != "" {
-		env.Out.Log("Previous conversation saved as: %s", filepath.Base(archived))
+	if !ok {
+		return "", ErrNotStarted
 	}
-	return "", nil
-}
-
-func printExchange(env *Env, user, assistant string) {
-	env.Out.Print("----------------")
-	env.Out.Print("user-chat-input>  " + user)
-	env.Out.Print("----------------")
-	env.Out.Print(assistant)
-}
-
-func startUndo(_ context.Context, env *Env, _ []string) (string, error) {
-	user, assistant, ok, err := env.Chat.Undo(env.SessionID)
-	if err != nil {
-		return "", err
-	}
-	if ok {
-		printExchange(env, user, assistant)
-	} else {
-		env.Out.Print("(The conversation is now empty.)")
-	}
+	logExchange(env, user, prev)
 	return "", nil
 }
 
 func startRecap(_ context.Context, env *Env, _ []string) (string, error) {
-	user, assistant, ok := env.Chat.Recap(env.SessionID)
+	user, reply, ok := env.Chat.Recap(env.SessionID)
 	if !ok {
-		return "", errors.New("Nothing to recap yet.")
+		return "", ErrNotStarted
 	}
-	printExchange(env, user, assistant)
+	logExchange(env, user, reply)
 	return "", nil
 }
 
 func startSend(ctx context.Context, env *Env, args []string) (string, error) {
-	if len(args) != 1 {
-		return "", errors.New("Command takes 1 argument: the file to send.")
+	if len(args) == 0 {
+		return "", errOneArgument
 	}
 	b, err := os.ReadFile(args[0])
 	if err != nil {
 		return "", err
 	}
-	_, err = env.Chat.Send(ctx, env.SessionID, string(b), env.Out, chat.SendOptions{})
-	return "", err
+	// Send starts the session first (Initializing/Resuming, instructions).
+	reply, err := env.Chat.Send(ctx, env.SessionID, string(b), env.Out, chat.SendOptions{})
+	if err != nil {
+		return "", err
+	}
+	if reply == "" {
+		return "", ErrNotStarted
+	}
+	return "", nil
 }
 
 func startTemplated(ctx context.Context, env *Env, args []string) (string, error) {
-	if len(args) != 1 {
-		return "", errors.New("Command takes 1 argument: the template name.")
+	if len(args) == 0 {
+		return "", errOneArgument
 	}
-	archived, err := env.Chat.Old(ctx, env.SessionID, args[0], true)
-	if err != nil {
-		return "", err
-	}
-	if archived != "" {
-		env.Out.Log("Previous conversation saved as: %s", filepath.Base(archived))
-	}
-	return "", nil
+	return "", env.Chat.Templated(ctx, env.SessionID, args[0])
 }
 
 func startNewTemplated(_ context.Context, env *Env, args []string) (string, error) {
-	if len(args) != 1 {
-		return "", errors.New("Command takes 1 argument: the template name.")
+	if len(args) == 0 {
+		return "", errOneArgument
 	}
-	path, err := env.Chat.SaveTemplate(env.SessionID, args[0])
-	if err != nil {
-		return "", err
-	}
-	env.Out.Log("Template created: %s", path)
-	return "", nil
+	_, err := env.Chat.NewTemplate(env.SessionID, args[0])
+	return "", err
 }

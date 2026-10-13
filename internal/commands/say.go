@@ -10,7 +10,7 @@ func say() *Command {
 	return &Command{
 		ID:            "say",
 		Name:          "say",
-		Description:   "Convert text to speech. \"sync:\" waits for playback; \"(male-voice)\" picks a male voice.",
+		Description:   "Converts text to speech.",
 		Examples:      "say sync: (male-voice) hello there world!",
 		CaseSensitive: true,
 		Run: func(ctx context.Context, env *Env, in Input) (string, error) {
