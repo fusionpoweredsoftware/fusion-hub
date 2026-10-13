@@ -1,8 +1,10 @@
-// Package config owns ~/.fusion-hub: the directory layout and the JSON
-// settings file that the "set" command edits.
+// Package config owns the fusion-hub directory layout (the app cache under
+// ~/.fusion-hub/fusion-hub) and the JSON settings file that the "set"
+// command edits.
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +15,9 @@ import (
 	"sync"
 )
 
+// AppName names the application; the cache root is ~/.<AppName>/<AppName>.
+const AppName = "fusion-hub"
+
 // Context directories under the root.
 const (
 	Histories = "histories"
@@ -22,10 +27,11 @@ const (
 	Apps      = "apps"
 )
 
-// Paths resolves files under the fusion-hub root directory.
+// Paths resolves files under the fusion-hub root directory ("~~").
 type Paths struct{ Root string }
 
-// DefaultPaths uses $FUSION_HUB_HOME, falling back to ~/.fusion-hub.
+// DefaultPaths uses $FUSION_HUB_HOME, falling back to
+// ~/.fusion-hub/fusion-hub (the app cache directory of the original).
 func DefaultPaths() (Paths, error) {
 	if dir := os.Getenv("FUSION_HUB_HOME"); dir != "" {
 		return Paths{Root: dir}, nil
@@ -34,10 +40,11 @@ func DefaultPaths() (Paths, error) {
 	if err != nil {
 		return Paths{}, err
 	}
-	return Paths{Root: filepath.Join(home, ".fusion-hub")}, nil
+	return Paths{Root: filepath.Join(home, "."+AppName, AppName)}, nil
 }
 
-func (p Paths) SettingsFile() string    { return filepath.Join(p.Root, "settings.json") }
+// SettingsFile is ~~/.settings.
+func (p Paths) SettingsFile() string    { return filepath.Join(p.Root, ".settings") }
 func (p Paths) CLIHistoryFile() string  { return filepath.Join(p.Root, ".cli-history") }
 func (p Paths) ModeHistoryFile() string { return filepath.Join(p.Root, ".cmd-mode-history") }
 
@@ -54,7 +61,7 @@ func (p Paths) Dir(context string) string {
 //	~~/x   -> <root>/x
 //	~/x    -> $HOME/x
 //	name   -> <root>/<context>/name   (bare names live in the context dir)
-//	./x, ../x, /x are used as given.
+//	./x, ../x, .x and /x are used as given (relative to the working directory).
 //
 // The parent directory is created so callers can write straight away.
 func (p Paths) Expand(path, context string) string {
@@ -67,7 +74,7 @@ func (p Paths) Expand(path, context string) string {
 	case strings.HasPrefix(path, "~"):
 		home, _ := os.UserHomeDir()
 		out = filepath.Join(home, strings.TrimPrefix(path, "~"))
-	case filepath.IsAbs(path) || strings.HasPrefix(path, "./") || strings.HasPrefix(path, "../"):
+	case filepath.IsAbs(path) || strings.HasPrefix(path, "."):
 		out = path
 	default:
 		out = filepath.Join(p.Root, context, path)
@@ -85,20 +92,35 @@ type Store struct {
 }
 
 // Load reads the settings file, returning an empty store if it is missing.
+//
+// When path is absent, the settings.json of the first Go release is read
+// instead (next to path, then in the parent directory) so existing settings
+// migrate; the first Save writes path.
 func Load(path string) (*Store, error) {
 	s := &Store{path: path, data: map[string]any{}}
-	b, err := os.ReadFile(path)
-	if errors.Is(err, os.ErrNotExist) {
+	candidates := []string{path}
+	if path != "" {
+		dir := filepath.Dir(path)
+		candidates = append(candidates, filepath.Join(dir, "settings.json"), filepath.Join(filepath.Dir(dir), "settings.json"))
+	}
+	for _, c := range candidates {
+		b, err := os.ReadFile(c)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(strings.TrimSpace(string(b))) == 0 {
+			return s, nil
+		}
+		if err := json.Unmarshal(b, &s.data); err != nil {
+			return nil, fmt.Errorf("settings %s: %w", c, err)
+		}
+		if s.data == nil {
+			s.data = map[string]any{}
+		}
 		return s, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	if len(strings.TrimSpace(string(b))) == 0 {
-		return s, nil
-	}
-	if err := json.Unmarshal(b, &s.data); err != nil {
-		return nil, fmt.Errorf("settings %s: %w", path, err)
 	}
 	return s, nil
 }
@@ -113,7 +135,7 @@ func (s *Store) Get(key string) (any, bool) {
 	return v, ok
 }
 
-// String returns the value for key as a string ("" when unset).
+// String returns the value for key as a string ("" when unset or null).
 func (s *Store) String(key string) string {
 	v, ok := s.Get(key)
 	if !ok || v == nil {
@@ -181,13 +203,14 @@ func (s *Store) Keys() []string {
 	return keys
 }
 
-// Save writes the settings atomically. A memory store is a no-op.
+// Save writes the settings as compact JSON (as JSON.stringify did),
+// atomically. A memory store is a no-op.
 func (s *Store) Save() error {
 	if s.path == "" {
 		return nil
 	}
 	s.mu.RLock()
-	b, err := json.MarshalIndent(s.data, "", "  ")
+	b, err := CompactJSON(s.data)
 	s.mu.RUnlock()
 	if err != nil {
 		return err
@@ -200,4 +223,16 @@ func (s *Store) Save() error {
 		return err
 	}
 	return os.Rename(tmp, s.path)
+}
+
+// CompactJSON marshals v the way JSON.stringify does: compact, with no HTML
+// escaping and no trailing newline.
+func CompactJSON(v any) ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
+		return nil, err
+	}
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
