@@ -46,7 +46,13 @@ func (r *REPL) Run(ctx context.Context, initial string) error {
 			if mode != "" {
 				path = r.Env.Paths.ModeHistoryFile()
 			}
-			rl.SetConfig(promptConfig(mode+"> ", path))
+			// A clone keeps the terminal settings but drops the loaded
+			// history, so SetConfig opens and loads the new file
+			// (SetHistoryPath would leave an empty, unsaved history).
+			cfg := rl.Config.Clone()
+			cfg.Prompt = mode + "> "
+			cfg.HistoryFile = path
+			rl.SetConfig(cfg)
 		}
 		line, err := rl.Readline()
 		switch {
@@ -68,10 +74,7 @@ func (r *REPL) Run(ctx context.Context, initial string) error {
 	return nil
 }
 
-// promptConfig is a fresh readline config for a prompt and history file.
-// A fresh config matters: readline only loads and saves the history file
-// when SetConfig sees a config it has not initialized (SetHistoryPath
-// switches to an empty in-memory history).
+// promptConfig is the initial readline config.
 func promptConfig(prompt, historyFile string) *readline.Config {
 	return &readline.Config{
 		Prompt:            prompt,
