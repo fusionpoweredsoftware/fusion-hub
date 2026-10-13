@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -46,10 +47,16 @@ func (c *claude) Stream(ctx context.Context, req Request, onDelta func(string)) 
 	if maxTokens == 0 {
 		maxTokens = c.cfg.MaxTokens
 	}
+	if maxTokens == 0 {
+		maxTokens = DefaultMaxTokens
+	}
+	// Only the temperature is sent: current models reject temperature and
+	// top_p together.
 	params := anthropic.BetaMessageNewParams{
-		Model:     anthropic.Model(model),
-		MaxTokens: int64(maxTokens),
-		Messages:  toBetaMessages(req.Messages),
+		Model:       anthropic.Model(model),
+		MaxTokens:   int64(maxTokens),
+		Messages:    toBetaMessages(req.Messages),
+		Temperature: anthropic.Float(c.cfg.Temperature),
 	}
 	if req.System != "" {
 		params.System = []anthropic.BetaTextBlockParam{{Text: req.System}}
@@ -84,6 +91,12 @@ func (c *claude) Stream(ctx context.Context, req Request, onDelta func(string)) 
 		return "", fmt.Errorf("the model declined to answer")
 	}
 	return out.String(), nil
+}
+
+// isAnthropicStatus reports whether err is an API error with that status.
+func isAnthropicStatus(err error, status int) bool {
+	var apiErr *anthropic.Error
+	return errors.As(err, &apiErr) && apiErr.StatusCode == status
 }
 
 // toBetaMessages converts history to API messages, merging consecutive
