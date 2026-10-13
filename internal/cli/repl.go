@@ -30,11 +30,7 @@ func (r *REPL) Run(ctx context.Context, initial string) error {
 	if initial != "" {
 		r.exec(ctx, initial)
 	}
-	rl, err := readline.NewEx(&readline.Config{
-		HistoryFile:       r.Env.Paths.CLIHistoryFile(),
-		HistorySearchFold: true,
-		InterruptPrompt:   "^C",
-	})
+	rl, err := readline.NewEx(promptConfig("> ", r.Env.Paths.CLIHistoryFile()))
 	if err != nil {
 		return err
 	}
@@ -46,12 +42,11 @@ func (r *REPL) Run(ctx context.Context, initial string) error {
 		if m := r.Env.State.Mode(); m != mode {
 			mode = m
 			// CLI mode and command mode keep separate input histories.
-			if mode == "" {
-				rl.SetHistoryPath(r.Env.Paths.CLIHistoryFile())
-			} else {
-				rl.SetHistoryPath(r.Env.Paths.ModeHistoryFile())
+			path := r.Env.Paths.CLIHistoryFile()
+			if mode != "" {
+				path = r.Env.Paths.ModeHistoryFile()
 			}
-			rl.SetPrompt(mode + "> ")
+			rl.SetConfig(promptConfig(mode+"> ", path))
 		}
 		line, err := rl.Readline()
 		switch {
@@ -71,6 +66,19 @@ func (r *REPL) Run(ctx context.Context, initial string) error {
 		}
 	}
 	return nil
+}
+
+// promptConfig is a fresh readline config for a prompt and history file.
+// A fresh config matters: readline only loads and saves the history file
+// when SetConfig sees a config it has not initialized (SetHistoryPath
+// switches to an empty in-memory history).
+func promptConfig(prompt, historyFile string) *readline.Config {
+	return &readline.Config{
+		Prompt:            prompt,
+		HistoryFile:       historyFile,
+		HistorySearchFold: true,
+		InterruptPrompt:   "^C",
+	}
 }
 
 // exec runs one line; Ctrl+C while it runs cancels it.
