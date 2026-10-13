@@ -19,6 +19,11 @@ import (
 // ErrNotFound is returned for an unknown command.
 var ErrNotFound = errors.New("Command not found.")
 
+// ErrNotStarted is returned by a StartFunc that decided not to start (for
+// example "start last" on an empty conversation): nothing is logged, the
+// mode does not change and no error is shown, as in the original.
+var ErrNotStarted = errors.New("not started")
+
 // Input is a parsed command line (without the command name, unless the
 // line was entered in command mode, where the whole line is input).
 type Input struct {
