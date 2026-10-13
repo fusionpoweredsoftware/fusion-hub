@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/dop251/goja"
@@ -392,4 +393,52 @@ func objectOf(v goja.Value) *goja.Object {
 	}
 	obj, _ := v.(*goja.Object)
 	return obj
+}
+
+// Args is the original getArgs tokenizer: whitespace-separated, with
+// single quotes grouping words and \' escaping a quote.
+func (e *Engine) Args(s string) ([]string, error) {
+	return e.getArgs(s)
+}
+
+// JSON5 parses s with the json5 library, as the original did for app
+// settings typed on the command line.
+func (e *Engine) JSON5(s string) (any, error) {
+	mod, err := e.exports("json5")
+	if err != nil {
+		return nil, err
+	}
+	v, err := e.call(mod.Get("parse"), e.vm.ToValue(s))
+	if err != nil {
+		return nil, err
+	}
+	var out any
+	if err := e.fromJS(v, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ExpandFilePath is the original expandFilePath without the directory
+// creation: ~~~ is the context directory under the root, ~~ the root, ~ the
+// home directory, and a name starting with a letter lives in the context
+// directory. Everything else is used as given (relative to the working
+// directory, like node).
+func ExpandFilePath(paths config.Paths, path, contextDir string) string {
+	if contextDir == "" {
+		contextDir = config.Histories
+	}
+	if path != "" && (path[0] >= 'a' && path[0] <= 'z' || path[0] >= 'A' && path[0] <= 'Z') {
+		path = "~~~/" + path
+	}
+	home, _ := os.UserHomeDir()
+	switch {
+	case strings.HasPrefix(path, "~~~"):
+		return filepath.Join(paths.Root, contextDir, strings.TrimPrefix(path, "~~~"))
+	case strings.HasPrefix(path, "~~"):
+		return filepath.Join(paths.Root, strings.TrimPrefix(path, "~~"))
+	case strings.HasPrefix(path, "~"):
+		return filepath.Join(home, strings.TrimPrefix(path, "~"))
+	}
+	return path
 }

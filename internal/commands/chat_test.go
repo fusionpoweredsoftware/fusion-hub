@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -135,8 +134,9 @@ func TestStartOldSendAndTemplates(t *testing.T) {
 	// An empty reply from "send" does not start.
 	h.env.State.SetMode("")
 	h.sp.Replies = []string{""}
+	// (runStart swallows ErrNotStarted: no log, no mode change, no error.)
 	_, err := h.reg.Execute(context.Background(), h.env, "start send chat-with-ai "+file)
-	if !errors.Is(err, ErrNotStarted) || h.env.State.Mode() != "" {
+	if err != nil || h.env.State.Mode() != "" {
 		t.Errorf("empty send: %v mode %q", err, h.env.State.Mode())
 	}
 }
@@ -144,8 +144,8 @@ func TestStartOldSendAndTemplates(t *testing.T) {
 func TestLastAndRecapOutput(t *testing.T) {
 	h := newHarness(t, "ok", "a1", "a2")
 	for _, line := range []string{"start last chat-with-ai", "start recap chat-with-ai"} {
-		if _, err := h.reg.Execute(context.Background(), h.env, line); !errors.Is(err, ErrNotStarted) {
-			t.Errorf("%q on empty conversation: %v", line, err)
+		if _, err := h.reg.Execute(context.Background(), h.env, line); err != nil || h.env.State.Mode() != "" {
+			t.Errorf("%q on empty conversation: %v (mode %q)", line, err, h.env.State.Mode())
 		}
 	}
 	h.run(t, "chat-with-ai q1")
@@ -168,7 +168,7 @@ func TestLastAndRecapOutput(t *testing.T) {
 	h.run(t, "start last chat-with-ai")
 	h.env.State.SetMode("")
 	// Undoing down to nothing is refused.
-	if _, err := h.reg.Execute(context.Background(), h.env, "start last chat-with-ai"); !errors.Is(err, ErrNotStarted) || h.env.Chat.Session("").Len() != 2 {
+	if _, err := h.reg.Execute(context.Background(), h.env, "start last chat-with-ai"); err != nil || h.env.State.Mode() != "" || h.env.Chat.Session("").Len() != 2 {
 		t.Errorf("undo to empty: %v len %d", err, h.env.Chat.Session("").Len())
 	}
 	if h.reg.Get("chat-with-ai").Start["undo"] != nil {

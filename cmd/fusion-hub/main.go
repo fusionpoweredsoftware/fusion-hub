@@ -54,6 +54,7 @@ func run(args []string) error {
 		State:    &commands.State{},
 		Registry: reg,
 	}
+	env.Chat.Console = out
 
 	if len(args) > 0 && (args[0] == "serve" || args[0] == "--serve") {
 		return serve(env)

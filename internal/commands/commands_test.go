@@ -230,10 +230,13 @@ func TestHelpLayout(t *testing.T) {
 // compact JSON followed by a blank line; nill prints plain lines.
 func TestSetOutputFormat(t *testing.T) {
 	h := newHarness(t)
-	if out := h.run(t, "set"); out != "<KEY> AS <VALUE>:\n\n\n" {
+	// current-input-history-file-path is seeded to null like the original's
+	// `||= null`, and its JS regex chain left `:null` as is.
+	if out := h.run(t, "set"); out != "<KEY> AS <VALUE>:\n\ncurrent-input-history-file-path:null\n" {
 		t.Errorf("empty listing = %q", out)
 	}
 	h.run(t, `set json {"model": "m-1", "n": 2, "flag": true, ".hidden": "x", "nested": {"a": "b, c"}, "list": ["x", "y"], "my-api-key": "sk-1234567890abcd"}`)
+	// `set json` replaced the whole settings, so the seeded key is gone.
 	want := "<KEY> AS <VALUE>:\n\n" +
 		"flag:true\n" +
 		"list:[x\ny]\n" +
@@ -313,39 +316,127 @@ func TestSay(t *testing.T) {
 	}
 }
 
+// The .app.ail.js examples shipped in the binary are copied to
+// <root>/multi-command on first use and run unchanged.
 func TestAppUsingAI(t *testing.T) {
-	h := newHarness(t, "ok", `{"translationToSpanish": "Hola", "isEnglishToSpanishTranslation": true}`)
-	out := h.run(t, "start new app-using-ai english2spanish")
-	if !strings.Contains(out, "App English to Spanish started.") || h.env.State.Mode() != "app-using-ai" {
-		t.Fatalf("out %q", out)
+	// The scripted replies answer the instruction turn of the first chat, the
+	// app, the file name asked when that chat is finalized, and the next
+	// chat's instruction turn.
+	h := newHarness(t, "ok", "Hello *there*!\n\nSecond paragraph.", "old-chat.json", "ok")
+	out := h.run(t, "start new app-using-ai spoken-chat-with-ai")
+	if h.env.State.Mode() != "app-using-ai" {
+		t.Fatalf("mode %q, out %q", h.env.State.Mode(), out)
 	}
-	if out := h.run(t, "Hello"); out != "Hola\n" {
-		t.Errorf("app out %q", out)
+	out = h.run(t, "hi")
+	if want := "Hello there!\n\nSecond paragraph.\n\n"; !strings.Contains(out, want) {
+		t.Errorf("app out %q lacks %q", out, want)
 	}
-	// Only the instruction exchange is in history: the translation was ephemeral.
+	if !reflect.DeepEqual(h.rec.Said, []string{"Hello there!", "Second paragraph."}) {
+		t.Errorf("said %q", h.rec.Said)
+	}
+	if _, err := os.Stat(filepath.Join(h.env.Paths.Root, MultiCommandDir, "spoken-chat-with-ai"+AppExt)); err != nil {
+		t.Error("example not copied next to the user's apps")
+	}
+	if h.env.State.Mode() != "app-using-ai" {
+		t.Errorf("mode %q after the app", h.env.State.Mode())
+	}
+	// Instruction exchange plus the app's exchange.
+	if h.env.Chat.Session("").Len() != 4 {
+		t.Errorf("history %d", h.env.Chat.Session("").Len())
+	}
+	// A plain start keeps the app and its chat; a new start resets the chat.
+	// (In command mode every line goes to the app, as in the original; the
+	// user leaves it with Ctrl-C.)
+	h.env.State.SetMode("")
+	h.run(t, "start app-using-ai")
+	if h.env.Chat.Session("").Len() != 4 {
+		t.Error("plain start lost the conversation")
+	}
+	h.env.State.SetMode("")
+	h.run(t, "start new app-using-ai")
 	if h.env.Chat.Session("").Len() != 2 {
-		t.Error("ephemeral translation kept in history")
+		t.Error("new start kept the conversation")
 	}
 }
 
+const greetApp = `//**Greeter**
+//(?:\r\n|\n)[ ]*/\*(?:\r\n|\n)?
+//(?:\r?\n?\*/)
+//STOP
+
+//script:
+/*(reply,text) chat-with-ai Say ${app.settings.greeting} to ${app.input}*/
+output.print(reply);
+/*say sync: ${app.input}*/
+/*STOP*/
+/*start app-using-ai*/
+`
+
 func TestAppSettingsAndUserApps(t *testing.T) {
 	h := newHarness(t)
+	h.sp.Reply = func(r provider.Request) string { return "Howdy, Ada!" }
+	dir := filepath.Join(h.env.Paths.Root, MultiCommandDir)
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "greet"+AppExt), []byte(greetApp), 0o644)
+	h.run(t, `start new app-using-ai greet '{"greeting": "Howdy"}'`)
+	if out := h.run(t, "Ada"); !strings.Contains(out, "Howdy, Ada!\n") {
+		t.Errorf("out %q", out)
+	}
+	if len(h.rec.Said) != 1 || h.rec.Said[0] != "Ada" {
+		t.Errorf("say block: said %q", h.rec.Said)
+	}
+	req := h.sp.Requests[len(h.sp.Requests)-1]
+	if got := req.Messages[len(req.Messages)-1].Content; got != "Say Howdy to Ada" {
+		t.Errorf("prompt %q", got)
+	}
+	// Saved settings win over the ones typed on a plain start (Object.assign).
+	h.env.State.SetMode("")
+	h.run(t, `start app-using-ai greet '{"greeting": "Yo", "extra": 1}'`)
+	cfg := loadAppConfigs(h.env)
+	if e := sessionConfig(cfg, "0"); e.AppSettings["greeting"] != "Howdy" || e.AppSettings["extra"] != float64(1) || e.AppFilePath != "greet"+AppExt {
+		t.Errorf("config %+v", e)
+	}
+	// A debug start replaces them.
+	h.env.State.SetMode("")
+	h.run(t, `start debug app-using-ai greet '{"greeting": "Yo"}'`)
+	if e := sessionConfig(loadAppConfigs(h.env), "0"); e.AppSettings["greeting"] != "Yo" || !e.IsDebugging {
+		t.Errorf("debug config %+v", e)
+	}
+	h.env.State.SetMode("")
+	if out := h.run(t, "multi-command greet.app.ail.js Bob"); !strings.Contains(out, "Howdy, Ada!") {
+		t.Errorf("multi-command out %q", out)
+	}
+	h.env.State.SetMode("")
+	if out := h.run(t, "multi-command"); !strings.Contains(out, "multi-command <file.txt> [parameters]") {
+		t.Errorf("usage %q", out)
+	}
+	if _, err := h.reg.Execute(context.Background(), h.env, "start new app-using-ai a b c d"); err == nil || err.Error() != "Command limited to 3 arguments." {
+		t.Errorf("argument limit: %v", err)
+	}
+	h.env.State.SetMode("")
+	// Errors while running an app are logged, not fatal, as in the original.
+	h.run(t, "start new app-using-ai missing-app")
+	if out := h.run(t, "hello"); !strings.Contains(out, "ENOENT") || !strings.Contains(out, "missing-app.app.ail.js") {
+		t.Errorf("missing app: %q", out)
+	}
+}
+
+// Declarative apps still run when named with their .ail.yaml extension.
+func TestYAMLApp(t *testing.T) {
+	h := newHarness(t, "ok")
 	dir := filepath.Join(h.env.Paths.Root, config.Apps)
 	os.MkdirAll(dir, 0o755)
 	os.WriteFile(filepath.Join(dir, "greet.ail.yaml"), []byte("name: Greeter\nsteps:\n  - print: ${settings.greeting}, ${input}!\n  - command: say ${input}\n"), 0o644)
-	h.run(t, `start app-using-ai greet '{"greeting": "Howdy"}'`)
+	h.run(t, `start app-using-ai greet.ail.yaml '{"greeting": "Howdy"}'`)
 	if out := h.run(t, "Ada"); out != "Howdy, Ada!\n" {
 		t.Errorf("out %q", out)
 	}
 	if len(h.rec.Said) != 1 || h.rec.Said[0] != "Ada" {
-		t.Errorf("command step ran in app mode? said %q", h.rec.Said)
+		t.Errorf("said %q", h.rec.Said)
 	}
 	h.env.State.SetMode("")
-	if out := h.run(t, "multi-command greet Bob"); out != ", Bob!\n" {
+	if out := h.run(t, "multi-command greet.ail.yaml Bob"); out != ", Bob!\n" {
 		t.Errorf("multi-command out %q", out)
-	}
-	if _, err := h.reg.Execute(context.Background(), h.env, "start app-using-ai missing-app"); err == nil {
-		t.Error("missing app accepted")
 	}
 }
 
