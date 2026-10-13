@@ -35,10 +35,12 @@ func newHarness(t *testing.T, replies ...string) *harness {
 	sp := &provider.Scripted{Replies: replies}
 	m := chat.NewManager(paths, settings)
 	m.Provider = func() (provider.Provider, error) { return sp, nil }
+	w := output.New(out)
+	m.Console = w
 	rec := &tts.Recorder{}
 	reg := NewRegistry()
 	return &harness{
-		env: &Env{Out: output.New(out), Settings: settings, Paths: paths, Chat: m, Speaker: rec, State: &State{}, Registry: reg},
+		env: &Env{Out: w, Settings: settings, Paths: paths, Chat: m, Speaker: rec, State: &State{}, Registry: reg},
 		reg: reg, out: out, sp: sp, rec: rec,
 	}
 }
@@ -93,13 +95,13 @@ func TestSet(t *testing.T) {
 }
 
 func TestStartChatModeAndSticky(t *testing.T) {
-	h := newHarness(t, "Hi Ada!", "Fine.")
+	h := newHarness(t, "ok", "Hi Ada!", "Fine.")
 	out := h.run(t, "start chat-with-ai")
-	if !strings.Contains(out, "Chat with AI started.") || h.env.State.Mode() != "chat-with-ai" {
+	if !strings.Contains(out, "Initializing chat with AI...") || !strings.Contains(out, "Chat with AI started.") || h.env.State.Mode() != "chat-with-ai" {
 		t.Fatalf("out %q mode %q", out, h.env.State.Mode())
 	}
 	// In command mode the whole line goes to the command.
-	if out := h.run(t, "help me, I'm Ada"); out != "Hi Ada!\n" {
+	if out := h.run(t, "help me, I'm Ada"); out != "Hi Ada!\n\n" {
 		t.Errorf("chat out %q", out)
 	}
 	if h.sp.Last() != "help me, I'm Ada" {
@@ -122,7 +124,7 @@ func TestStartChatModeAndSticky(t *testing.T) {
 	// Still in chat mode, a "start" line would be sent to the AI.
 	h.env.State.SetMode("")
 	out = h.run(t, "start last chat-with-ai")
-	if !strings.Contains(out, "help me, I'm Ada") || !strings.Contains(out, "Last chat with AI started.") {
+	if !strings.Contains(out, "user-chat-input>  how are you") || !strings.Contains(out, "Hi Ada!") || !strings.Contains(out, "Last chat with AI started.") {
 		t.Errorf("undo %q", out)
 	}
 }
@@ -144,17 +146,17 @@ func TestStartErrors(t *testing.T) {
 }
 
 func TestNewTemplatedAndTemplated(t *testing.T) {
-	h := newHarness(t, "Bonjour", "name.json")
+	h := newHarness(t, "ok", "Bonjour", "name.json", "ok2")
 	h.run(t, "chat-with-ai Speak French")
 	h.run(t, "start new-templated chat-with-ai french")
 	h.env.State.SetMode("")
-	if _, err := os.Stat(filepath.Join(h.env.Paths.Root, config.Templates, "french.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(h.env.Paths.Root, config.Templates, "french")); err != nil {
 		t.Fatal(err)
 	}
 	h.run(t, "start new chat-with-ai")
 	h.env.State.SetMode("")
 	h.run(t, "start templated chat-with-ai french")
-	if h.env.Chat.Session("").Len() != 2 {
+	if h.env.Chat.Session("").Len() != 4 {
 		t.Error("template not loaded")
 	}
 }
@@ -169,7 +171,7 @@ func TestSay(t *testing.T) {
 }
 
 func TestAppUsingAI(t *testing.T) {
-	h := newHarness(t, `{"translationToSpanish": "Hola", "isEnglishToSpanishTranslation": true}`)
+	h := newHarness(t, "ok", `{"translationToSpanish": "Hola", "isEnglishToSpanishTranslation": true}`)
 	out := h.run(t, "start new app-using-ai english2spanish")
 	if !strings.Contains(out, "App English to Spanish started.") || h.env.State.Mode() != "app-using-ai" {
 		t.Fatalf("out %q", out)
@@ -177,7 +179,8 @@ func TestAppUsingAI(t *testing.T) {
 	if out := h.run(t, "Hello"); out != "Hola\n" {
 		t.Errorf("app out %q", out)
 	}
-	if h.env.Chat.Session("").Len() != 0 {
+	// Only the instruction exchange is in history: the translation was ephemeral.
+	if h.env.Chat.Session("").Len() != 2 {
 		t.Error("ephemeral translation kept in history")
 	}
 }
