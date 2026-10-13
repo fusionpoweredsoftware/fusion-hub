@@ -27,9 +27,9 @@ func TestHistoryPersists(t *testing.T) {
 		return rl
 	}
 	switchTo := func(rl *readline.Instance, prompt, file string) {
-		cfg := promptConfig(prompt, file)
-		cfg.Stdin = io.NopCloser(strings.NewReader(""))
-		cfg.Stdout, cfg.Stderr = io.Discard, io.Discard
+		cfg := rl.Config.Clone() // as Run does
+		cfg.Prompt = prompt
+		cfg.HistoryFile = file
 		rl.SetConfig(cfg)
 	}
 	// Instances are not closed: readline's Close races with its own input
