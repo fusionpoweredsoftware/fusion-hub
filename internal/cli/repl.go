@@ -23,18 +23,34 @@ const DoubleInterrupt = 350 * time.Millisecond
 type REPL struct {
 	Env      *commands.Env
 	Registry *commands.Registry
+	// Configure, when set, adjusts the readline configuration before the
+	// prompt opens (tests use it to supply their own streams).
+	Configure func(*readline.Config)
 }
 
 // Run executes initial (if any) and then reads lines until exit.
+//
+// Ctrl+C ends the current line silently and switches between CLI mode and
+// the last command mode; pressed twice within DoubleInterrupt it exits, as
+// does Ctrl+C in lock mode. Ctrl+D on a terminal does the same; end of
+// input on a non-terminal stdin exits.
 func (r *REPL) Run(ctx context.Context, initial string) error {
 	if initial != "" {
 		r.exec(ctx, initial)
 	}
-	rl, err := readline.NewEx(promptConfig("> ", r.Env.Paths.CLIHistoryFile()))
+	cfg := promptConfig("> ", r.Env.Paths.CLIHistoryFile())
+	if r.Configure != nil {
+		r.Configure(cfg)
+	}
+	rl, err := readline.NewEx(cfg)
 	if err != nil {
 		return err
 	}
 	defer rl.Close()
+	isTerminal := rl.Config.FuncIsTerminal
+
+	// An empty line before the first prompt, as the original.
+	r.Env.Out.Print("")
 
 	var lastInterrupt time.Time
 	mode := "\x00" // force the first prompt/history setup
@@ -56,7 +72,9 @@ func (r *REPL) Run(ctx context.Context, initial string) error {
 		}
 		line, err := rl.Readline()
 		switch {
-		case errors.Is(err, readline.ErrInterrupt):
+		case errors.Is(err, readline.ErrInterrupt), errors.Is(err, io.EOF) && isTerminal():
+			// readline has already ended the line (the empty line after
+			// the switch); the next prompt follows on a fresh line.
 			if r.Env.State.Locked() != "" || time.Since(lastInterrupt) < DoubleInterrupt {
 				r.Env.State.Stop()
 				continue
@@ -74,13 +92,16 @@ func (r *REPL) Run(ctx context.Context, initial string) error {
 	return nil
 }
 
-// promptConfig is the initial readline config.
+// promptConfig is the initial readline config. The interrupt and EOF
+// prompts are a bare newline so Ctrl+C and Ctrl+D end the line without
+// echoing "^C" or "^D".
 func promptConfig(prompt, historyFile string) *readline.Config {
 	return &readline.Config{
 		Prompt:            prompt,
 		HistoryFile:       historyFile,
 		HistorySearchFold: true,
-		InterruptPrompt:   "^C",
+		InterruptPrompt:   "\n",
+		EOFPrompt:         "\n",
 	}
 }
 
